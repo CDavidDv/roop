@@ -28,10 +28,10 @@ tensorflow==2.15.0
 tensorflow-estimator>=2.15,<2.16
 tk==0.1.0
 tkinterdnd2==0.3.0
-torch==2.3.0+cu121
-torchaudio==2.3.0+cu121
+torch==2.3.0
+torchaudio==2.3.0
 torchtext==0.18.0
-torchvision==0.16.2+cu118
+torchvision==0.16.2
 tqdm==4.65.0
 triton==2.3.0
 typing-extensions>=4.6.1
@@ -39,4 +39,5 @@ yapf==0.40.2
 pandas-stubs==2.0.3.230814
 pydantic==2.8.0
 pydantic-core==2.20.0
+
 
