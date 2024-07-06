@@ -33,7 +33,7 @@ torchaudio==2.1.0+cu118
 torchtext==0.16.0
 torchvision==0.16.0+cu118
 tqdm==4.65.0
-triton==2.1.0
+triton>=2.1.0
 typing-extensions>=4.6.1
 yapf==0.40.2
 pandas-stubs==2.0.3.230814
