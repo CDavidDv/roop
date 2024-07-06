@@ -25,7 +25,7 @@ sqlalchemy==2.0.31
 tb-nightly==2.18.0a20240706
 tensorboard>=2.15,<2.16
 tensorflow==2.15.0
-tensorflow-estimator==2.13.0
+tensorflow-estimator>=2.15,<2.16
 tk==0.1.0
 tkinterdnd2==0.3.0
 torch>=2.3.0
