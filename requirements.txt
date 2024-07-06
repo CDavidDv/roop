@@ -23,12 +23,12 @@ pillow==10.0.0
 protobuf>=3.20.3,<4.21
 sqlalchemy==2.0.31
 tb-nightly==2.18.0a20240706
-tensorboard==2.13.0
-tensorflow==2.15.0  # Asegúrate de usar una versión compatible con tf-keras
+tensorboard>=2.15,<2.16
+tensorflow==2.15.0
 tensorflow-estimator==2.13.0
 tk==0.1.0
 tkinterdnd2==0.3.0
-torch>=2.3.0  # Asegúrate de tener una versión compatible con torchaudio y torchtext
+torch>=2.3.0
 torchaudio==2.3.0+cu121
 torchtext==0.18.0
 torchvision==0.16.2+cu118
@@ -39,4 +39,3 @@ yapf==0.40.2
 pandas-stubs==2.0.3.230814
 pydantic==2.8.0
 pydantic-core==2.20.0
-
