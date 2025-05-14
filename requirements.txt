@@ -14,7 +14,7 @@ humanfriendly==10.0
 insightface==0.7.3
 keras>=2.15.0,<2.16
 lmdb==1.5.1
-numpy>=1.25.0
+numpy>=1.23.5
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
