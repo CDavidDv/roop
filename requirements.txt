@@ -12,9 +12,9 @@ gfpgan==1.3.8
 google-auth-oauthlib==1.0.0
 humanfriendly==10.0
 insightface==0.7.3
-keras==2.12
+keras>=2.15.0,<2.16
 lmdb==1.5.1
-numpy>=1.24.2
+numpy>=1.23.5
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
@@ -24,7 +24,7 @@ protobuf>=3.20.3,<4.21
 sqlalchemy==2.0.31
 tb-nightly==2.18.0a20240706
 tensorboard>=2.15,<2.16
-tensorflow==2.12.0
+tensorflow==2.13.0
 tensorflow-estimator>=2.15,<2.16
 tk==0.1.0
 tkinterdnd2==0.3.0
