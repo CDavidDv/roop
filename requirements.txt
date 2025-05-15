@@ -13,7 +13,7 @@ google-auth-oauthlib==1.0.0
 humanfriendly==10.0
 insightface==0.7.3
 lmdb==1.5.1
-numpy>=1.23.5
+numpy==1.24.3
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
@@ -35,6 +35,5 @@ tqdm==4.65.0
 triton>=2.1.0
 typing-extensions>=3.6.6,<4.6.0
 yapf==0.40.2
-pandas-stubs==2.0.3.230814
 pydantic==2.8.0
 pydantic-core==2.20.0
