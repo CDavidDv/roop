@@ -1,6 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
 
-numpy==1.24.1
 addict==2.4.0
 basicsr==1.4.2
 coloredlogs==15.0.1
@@ -13,19 +12,20 @@ gfpgan==1.3.8
 google-auth-oauthlib==1.0.0
 humanfriendly==10.0
 insightface==0.7.3
+keras>=2.15.0,<2.16
 lmdb==1.5.1
-
+numpy>=1.23.5
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
 opennsfw2==0.10.2
 pillow==10.0.0
 protobuf>=3.20.3,<4.21
-sqlalchemy==1.4.49
+sqlalchemy==2.0.31
 tb-nightly==2.18.0a20240706
-tensorboard>=2.13,<2.14
+tensorboard>=2.15,<2.16
 tensorflow==2.13.0
-tensorflow-estimator>=2.13,<2.14
+tensorflow-estimator>=2.15,<2.16
 tk==0.1.0
 tkinterdnd2==0.3.0
 torch==2.1.0+cu118
@@ -34,7 +34,8 @@ torchtext==0.16.0
 torchvision==0.16.0+cu118
 tqdm==4.65.0
 triton>=2.1.0
-typing-extensions>=3.6.6,<4.6.0
+typing-extensions>=4.6.1
 yapf==0.40.2
+pandas-stubs==2.0.3.230814
 pydantic==2.8.0
 pydantic-core==2.20.0
