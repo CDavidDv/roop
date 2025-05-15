@@ -12,7 +12,6 @@ gfpgan==1.3.8
 google-auth-oauthlib==1.0.0
 humanfriendly==10.0
 insightface==0.7.3
-keras=2.14, >=2.13.1
 lmdb==1.5.1
 numpy>=1.23.5
 onnx==1.14.0
