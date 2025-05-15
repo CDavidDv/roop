@@ -1,20 +1,20 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
 
 addict==2.4.0
-basicsr==1.4.2
+basicsr>=1.4.2
 coloredlogs==15.0.1
 customtkinter==5.2.0
 darkdetect==0.8.0
-facexlib==0.3.0
+facexlib>=0.3.0
 filterpy==1.4.5
 gast==0.4.0
-gfpgan==1.3.8
+gfpgan>=1.3.8
 google-auth-oauthlib==1.0.0
 humanfriendly==10.0
-insightface==0.7.3
-keras>=2.13.1.0,<2.14
+insightface>=0.7.3
+keras>=2.13.1,<2.14
 lmdb==1.5.1
-numpy==1.23.5
+numpy>=1.24.2
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
