@@ -25,7 +25,7 @@ sqlalchemy==2.0.31
 tensorflow==2.18.0
 tensorflow-estimator==2.15.0
 tensorflow-text==2.18.1
-tensorboard==2.15.0
+tensorboard==2.18
 tk==0.1.0
 tkinterdnd2==0.3.0
 torch==2.1.0+cu118
