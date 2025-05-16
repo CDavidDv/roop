@@ -29,6 +29,7 @@ tensorboard==2.18
 tk==0.1.0
 tkinterdnd2==0.3.0
 torch==2.1.0+cu118
+torchdata==0.11.0
 torchaudio==2.1.0+cu118
 torchtext==0.16.0
 torchvision==0.16.0+cu118
