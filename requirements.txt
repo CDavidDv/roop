@@ -34,7 +34,7 @@ torchtext==0.16.0
 torchvision==0.16.0+cu118
 tqdm==4.67.0
 triton==2.1.0
-typing-extensions==4.14.0
+typing-extensions==4.13.2
 pandas-stubs==1.5.3.230203
 pydantic==2.8.0
 pydantic-core==2.20.0
