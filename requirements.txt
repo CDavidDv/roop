@@ -21,7 +21,7 @@ opencv-python==4.8.0.74
 opennsfw2==0.10.2
 pillow==10.0.0
 protobuf==3.20.3
-sqlalchemy==2.0.31
+sqlalchemy==1.4.49
 tensorboard==2.13.0
 tensorflow==2.13.0
 tensorflow-estimator==2.13.0
