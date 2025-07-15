@@ -28,11 +28,20 @@ def get_face_enhancer() -> Any:
 
 
 def get_device() -> str:
-    if 'CUDAExecutionProvider' in roop.globals.execution_providers:
+    # Forzar uso de GPU si está disponible
+    import onnxruntime as ort
+    available_providers = ort.get_available_providers()
+    
+    # Priorizar CUDA sobre CPU
+    if 'CUDAExecutionProvider' in available_providers:
+        print(f"[{NAME}] Forzando uso de GPU (CUDA)")
         return 'cuda'
-    if 'CoreMLExecutionProvider' in roop.globals.execution_providers:
+    elif 'CoreMLExecutionProvider' in available_providers:
+        print(f"[{NAME}] Usando CoreML")
         return 'mps'
-    return 'cpu'
+    else:
+        print(f"[{NAME}] CUDA no disponible, usando CPU")
+        return 'cpu'
 
 
 def clear_face_enhancer() -> None:

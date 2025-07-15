@@ -21,7 +21,22 @@ def get_face_swapper() -> Any:
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../inswapper_128.onnx')
-            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=roop.globals.execution_providers)
+            
+            # Forzar uso de GPU si está disponible
+            import onnxruntime as ort
+            available_providers = ort.get_available_providers()
+            
+            # Priorizar CUDA sobre CPU
+            if 'CUDAExecutionProvider' in available_providers:
+                # Usar solo CUDA para forzar GPU
+                providers = ['CUDAExecutionProvider']
+                print(f"[{NAME}] Forzando uso de GPU (CUDA)")
+            else:
+                # Fallback a CPU si CUDA no está disponible
+                providers = roop.globals.execution_providers
+                print(f"[{NAME}] CUDA no disponible, usando: {providers}")
+            
+            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
     return FACE_SWAPPER
 
 
