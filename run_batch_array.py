@@ -14,6 +14,14 @@ from pathlib import Path
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+# Desactivar predictor NSFW para evitar errores de GPU
+import roop.predictor
+def predict_video_skip_nsfw(target_path: str) -> bool:
+    print("⚠️ Saltando verificación NSFW para evitar conflictos de GPU...")
+    return False
+
+roop.predictor.predict_video = predict_video_skip_nsfw
+
 # ============================================
 # SOLO MODIFICA ESTE ARRAY
 # ============================================

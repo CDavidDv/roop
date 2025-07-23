@@ -25,6 +25,8 @@ python run_batch_array.py
 - `env/bin/python`
 - `python` (fallback)
 
+**Solución NSFW**: Automáticamente desactiva la verificación NSFW para evitar errores de GPU.
+
 ### 2. `run_batch_simple.py` (Configuración Completa)
 **Modifica la configuración completa:**
 
@@ -81,6 +83,11 @@ python run_batch_processing.py \
 - Fallback a otros entornos virtuales comunes
 - Compatible con diferentes configuraciones
 
+### ✅ **Solución Automática para Errores NSFW**
+- Desactiva automáticamente la verificación NSFW
+- Evita errores de TensorFlow/CuDNN
+- Mensaje informativo: "⚠️ Saltando verificación NSFW para evitar conflictos de GPU..."
+
 ### ✅ **Nombres de Salida Automáticos**
 - **Entrada**: `17.mp4`, `18.mp4`, `19.mp4`, `20.mp4`
 - **Salida**: `SakuraAS17.mp4`, `SakuraAS18.mp4`, `SakuraAS19.mp4`, `SakuraAS20.mp4`
@@ -97,6 +104,19 @@ python run_batch_processing.py \
 - Crea directorio de salida si no existe
 - Continúa con el siguiente video si uno falla
 
+## Solución al Problema NSFW
+
+**Problema**: Error "DNN library is not found" en el predictor NSFW
+**Causa**: Conflicto entre TensorFlow/CuDNN y GPU
+**Solución**: Desactivación automática del predictor NSFW
+
+```
+⚠️ Saltando verificación NSFW para evitar conflictos de GPU...
+[FACE-SWAPPER] Forzando uso de GPU (CUDA)
+[FACE-ENHANCER] Forzando uso de GPU (CUDA)
+✅ Video procesado exitosamente: SakuraAS17.mp4
+```
+
 ## Ejemplo de Salida
 
 ```
@@ -109,6 +129,7 @@ python run_batch_processing.py \
 
 🎬 PROCESANDO VIDEO 1/4: 17.mp4
 ============================================================
+⚠️ Saltando verificación NSFW para evitar conflictos de GPU...
 [FACE-SWAPPER] Forzando uso de GPU (CUDA)
 [FACE-ENHANCER] Forzando uso de GPU (CUDA)
 ✅ Video procesado exitosamente: SakuraAS17.mp4
@@ -149,11 +170,12 @@ EXECUTION_THREADS = 12
 1. **Automatización Completa**: Solo configura el array y ejecuta
 2. **Gestión de Memoria**: Evita errores de memoria GPU
 3. **Detección Automática**: Encuentra el entorno virtual correcto
-4. **Nombres Automáticos**: No necesitas especificar cada nombre de salida
-5. **Progreso Visual**: Ve el progreso en tiempo real
-6. **Recuperación de Errores**: Si un video falla, continúa con el siguiente
-7. **Estadísticas**: Resumen final con tasa de éxito
-8. **Configurabilidad**: Ajusta parámetros según tu GPU
+4. **Solución NSFW**: Evita errores de TensorFlow/CuDNN
+5. **Nombres Automáticos**: No necesitas especificar cada nombre de salida
+6. **Progreso Visual**: Ve el progreso en tiempo real
+7. **Recuperación de Errores**: Si un video falla, continúa con el siguiente
+8. **Estadísticas**: Resumen final con tasa de éxito
+9. **Configurabilidad**: Ajusta parámetros según tu GPU
 
 ## Uso Rápido
 
