@@ -41,6 +41,19 @@ KEEP_FPS = True
 # CÓDIGO (NO MODIFICAR)
 # ============================================
 
+def get_python_executable():
+    """Detectar el ejecutable de Python correcto"""
+    # Intentar usar el entorno virtual
+    if os.path.exists("roop_env/bin/python"):
+        return "roop_env/bin/python"
+    elif os.path.exists("venv/bin/python"):
+        return "venv/bin/python"
+    elif os.path.exists("env/bin/python"):
+        return "env/bin/python"
+    else:
+        # Fallback a sys.executable
+        return sys.executable
+
 def process_video(video_path: str, index: int, total: int) -> bool:
     """Procesar un video individual"""
     
@@ -64,8 +77,9 @@ def process_video(video_path: str, index: int, total: int) -> bool:
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     
     # Construir comando
+    python_exe = get_python_executable()
     cmd = [
-        sys.executable, 'run.py',
+        python_exe, 'run.py',
         '--source', SOURCE_IMAGE,
         '--target', video_path,
         '-o', output_path,

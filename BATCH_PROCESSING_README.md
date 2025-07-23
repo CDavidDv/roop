@@ -19,6 +19,12 @@ VIDEOS_TO_PROCESS = [
 python run_batch_array.py
 ```
 
+**Nota**: El script detecta automáticamente el entorno virtual:
+- `roop_env/bin/python` (prioridad)
+- `venv/bin/python`
+- `env/bin/python`
+- `python` (fallback)
+
 ### 2. `run_batch_simple.py` (Configuración Completa)
 **Modifica la configuración completa:**
 
@@ -39,8 +45,8 @@ OUTPUT_DIR = "/content/resultados"
 
 # Configuración
 GPU_MEMORY_WAIT = 30
-MAX_MEMORY = 12
-EXECUTION_THREADS = 8
+MAX_MEMORY = 11        # ← Tu valor
+EXECUTION_THREADS = 35 # ← Tu valor
 TEMP_FRAME_QUALITY = 100
 KEEP_FPS = True
 ```
@@ -69,6 +75,11 @@ python run_batch_processing.py \
 - Pausa de 10s entre videos diferentes
 - Liberación automática de cachés GPU
 - Monitoreo de VRAM en tiempo real
+
+### ✅ **Detección Automática de Entorno Virtual**
+- Busca automáticamente `roop_env/bin/python`
+- Fallback a otros entornos virtuales comunes
+- Compatible con diferentes configuraciones
 
 ### ✅ **Nombres de Salida Automáticos**
 - **Entrada**: `17.mp4`, `18.mp4`, `19.mp4`, `20.mp4`
@@ -122,8 +133,8 @@ EXECUTION_THREADS = 6
 ### Para GPUs con 12GB+ VRAM:
 ```python
 GPU_MEMORY_WAIT = 20
-MAX_MEMORY = 12
-EXECUTION_THREADS = 8
+MAX_MEMORY = 11
+EXECUTION_THREADS = 35
 ```
 
 ### Para GPUs con 24GB+ VRAM:
@@ -137,11 +148,12 @@ EXECUTION_THREADS = 12
 
 1. **Automatización Completa**: Solo configura el array y ejecuta
 2. **Gestión de Memoria**: Evita errores de memoria GPU
-3. **Nombres Automáticos**: No necesitas especificar cada nombre de salida
-4. **Progreso Visual**: Ve el progreso en tiempo real
-5. **Recuperación de Errores**: Si un video falla, continúa con el siguiente
-6. **Estadísticas**: Resumen final con tasa de éxito
-7. **Configurabilidad**: Ajusta parámetros según tu GPU
+3. **Detección Automática**: Encuentra el entorno virtual correcto
+4. **Nombres Automáticos**: No necesitas especificar cada nombre de salida
+5. **Progreso Visual**: Ve el progreso en tiempo real
+6. **Recuperación de Errores**: Si un video falla, continúa con el siguiente
+7. **Estadísticas**: Resumen final con tasa de éxito
+8. **Configurabilidad**: Ajusta parámetros según tu GPU
 
 ## Uso Rápido
 
