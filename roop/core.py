@@ -19,7 +19,7 @@ import roop.globals
 import roop.metadata
 import roop.ui as ui
 from roop.predictor import predict_image, predict_video
-from roop.processors.frame.core import get_frame_processors_modules
+from roop.processors.frame.core import get_frame_processors_modules, process_video_with_memory_management
 from roop.utilities import has_image_extension, is_image, is_video, detect_fps, create_video, extract_frames, get_temp_frame_paths, restore_audio, create_temp, move_temp, clean_temp, normalize_output_path
 
 warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
@@ -47,6 +47,7 @@ def parse_args() -> None:
     program.add_argument('--max-memory', help='maximum amount of RAM in GB', dest='max_memory', type=int)
     program.add_argument('--execution-provider', help='available execution provider (choices: cpu, ...)', dest='execution_provider', default=['cuda'], choices=suggest_execution_providers(), nargs='+')
     program.add_argument('--execution-threads', help='number of execution threads', dest='execution_threads', type=int, default=suggest_execution_threads())
+    program.add_argument('--gpu-memory-wait', help='wait time between processors to free GPU memory (seconds)', dest='gpu_memory_wait', type=int, default=15)
     program.add_argument('-v', '--version', action='version', version=f'{roop.metadata.name} {roop.metadata.version}')
 
     args = program.parse_args()
@@ -70,6 +71,7 @@ def parse_args() -> None:
     roop.globals.max_memory = args.max_memory
     roop.globals.execution_providers = decode_execution_providers(args.execution_provider)
     roop.globals.execution_threads = args.execution_threads
+    roop.globals.gpu_memory_wait_time = args.gpu_memory_wait
 
 
 def encode_execution_providers(execution_providers: List[str]) -> List[str]:
@@ -166,7 +168,9 @@ def start() -> None:
     if temp_frame_paths:
         for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
             update_status('Progressing...', frame_processor.NAME)
-            frame_processor.process_video(roop.globals.source_path, temp_frame_paths)
+            # Usar gestión de memoria entre procesadores
+            processor_name = frame_processor.NAME.replace('ROOP.', '').lower()
+            process_video_with_memory_management(roop.globals.source_path, temp_frame_paths, frame_processor.process_frames, processor_name)
             frame_processor.post_process()
     else:
         update_status('Frames not found...')

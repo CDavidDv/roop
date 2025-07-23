@@ -2,6 +2,8 @@ import os
 import sys
 import importlib
 import psutil
+import time
+import gc
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue
 from types import ModuleType
@@ -20,6 +22,69 @@ FRAME_PROCESSORS_INTERFACE = [
     'process_video',
     'post_process'
 ]
+
+
+def clear_gpu_memory():
+    """Liberar memoria GPU y limpiar cachés"""
+    try:
+        # Limpiar caché de PyTorch
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            print("[MEMORY] PyTorch GPU cache liberado")
+    except ImportError:
+        pass
+    
+    try:
+        # Limpiar caché de TensorFlow
+        import tensorflow as tf
+        tf.keras.backend.clear_session()
+        print("[MEMORY] TensorFlow session liberada")
+    except ImportError:
+        pass
+    
+    # Forzar garbage collection
+    gc.collect()
+    print("[MEMORY] Garbage collection ejecutado")
+
+
+def wait_for_gpu_memory_release(wait_time: int = 30):
+    """Esperar y monitorear liberación de memoria GPU"""
+    print(f"[MEMORY] Esperando {wait_time} segundos para liberar memoria GPU...")
+    
+    for i in range(wait_time, 0, -1):
+        try:
+            import torch
+            if torch.cuda.is_available():
+                memory_allocated = torch.cuda.memory_allocated() / 1024**3
+                memory_reserved = torch.cuda.memory_reserved() / 1024**3
+                print(f"[MEMORY] {i}s restantes - VRAM: {memory_allocated:.2f}GB usado, {memory_reserved:.2f}GB reservado", end='\r')
+        except:
+            print(f"[MEMORY] {i}s restantes...", end='\r')
+        time.sleep(1)
+    
+    print("\n[MEMORY] Pausa completada")
+    clear_gpu_memory()
+
+
+def process_video_with_memory_management(source_path: str, frame_paths: list[str], process_frames: Callable[[str, List[str], Any], None], processor_name: str = "unknown") -> None:
+    """Procesar video con gestión de memoria entre procesadores"""
+    print(f"[{processor_name.upper()}] Iniciando procesamiento...")
+    
+    progress_bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]'
+    total = len(frame_paths)
+    
+    with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', dynamic_ncols=True, bar_format=progress_bar_format) as progress:
+        multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress))
+    
+    print(f"[{processor_name.upper()}] Procesamiento completado")
+    
+    # Liberar memoria después de cada procesador
+    clear_gpu_memory()
+    
+    # Pausa entre procesadores para liberar memoria
+    if processor_name.lower() != "face_enhancer":  # No pausar después del último procesador
+        wait_for_gpu_memory_release(roop.globals.gpu_memory_wait_time)  # Pausa configurable
 
 
 def load_frame_processor_module(frame_processor: str) -> Any:
