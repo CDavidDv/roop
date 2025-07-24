@@ -25,12 +25,13 @@ class RoopOptimizer:
             'temp_frame_format': 'jpg',  # Ahorrar espacio en disco
             'temp_frame_quality': 100,    # Calidad balanceada
             'output_video_encoder': 'h264_nvenc',  # Usar encoder NVIDIA
+            'output_video_quality': 100,  # Calidad balanceada
             
             # Configuraciones de procesamiento
             'keep_fps': True,  # Mantener FPS original
             'skip_audio': False,  # Mantener audio
             'many_faces': False,  # Procesar solo la cara principal por defecto
-                
+            
             # Configuraciones de detección
             'similar_face_distance': 0.85,
             'reference_face_position': 0,
