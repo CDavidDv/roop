@@ -26,17 +26,27 @@ def get_face_swapper() -> Any:
             import onnxruntime as ort
             available_providers = ort.get_available_providers()
             
+            print(f"[{NAME}] Proveedores disponibles: {available_providers}")
+            
             # Priorizar CUDA sobre CPU
             if 'CUDAExecutionProvider' in available_providers:
                 # Usar solo CUDA para forzar GPU
                 providers = ['CUDAExecutionProvider']
-                print(f"[{NAME}] Forzando uso de GPU (CUDA)")
+                print(f"[{NAME}] ✅ Forzando uso de GPU (CUDA)")
+                print(f"[{NAME}] Cargando modelo con proveedores: {providers}")
             else:
                 # Fallback a CPU si CUDA no está disponible
                 providers = roop.globals.execution_providers
-                print(f"[{NAME}] CUDA no disponible, usando: {providers}")
+                print(f"[{NAME}] ❌ CUDA no disponible, usando: {providers}")
             
             FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
+            
+            # Verificar qué proveedores se aplicaron realmente
+            if hasattr(FACE_SWAPPER, 'providers'):
+                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
+            else:
+                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
+                
     return FACE_SWAPPER
 
 

@@ -75,7 +75,14 @@ def process_video_with_memory_management(source_path: str, frame_paths: list[str
     total = len(frame_paths)
     
     with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', dynamic_ncols=True, bar_format=progress_bar_format) as progress:
-        multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress))
+        # Crear una función de actualización que pase el número de frame
+        def update_with_frame(frame_index):
+            update_progress(progress, processor_name, frame_index + 1, total)
+        
+        # Procesar frames con información detallada
+        for i, frame_path in enumerate(frame_paths):
+            # Procesar un solo frame para mostrar progreso detallado
+            process_frames(source_path, [frame_path], lambda: update_with_frame(i))
     
     print(f"[{processor_name.upper()}] Procesamiento completado")
     
@@ -141,16 +148,37 @@ def process_video(source_path: str, frame_paths: list[str], process_frames: Call
     progress_bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]'
     total = len(frame_paths)
     with tqdm(total=total, desc='Processing', unit='frame', dynamic_ncols=True, bar_format=progress_bar_format) as progress:
-        multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress))
+        multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress, "unknown", 0, total))
 
 
-def update_progress(progress: Any = None) -> None:
+def update_progress(progress: Any = None, processor_name: str = "unknown", frame_number: int = 0, total_frames: int = 0) -> None:
     process = psutil.Process(os.getpid())
     memory_usage = process.memory_info().rss / 1024 / 1024 / 1024
+    
+    # Información de GPU si está disponible
+    gpu_info = ""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_memory = torch.cuda.memory_allocated() / 1024**3
+            gpu_info = f"GPU: {gpu_memory:.2f}GB"
+    except:
+        pass
+    
+    # Calcular porcentaje
+    if total_frames > 0:
+        percentage = (frame_number / total_frames) * 100
+        progress_text = f"{frame_number}/{total_frames} ({percentage:.1f}%)"
+    else:
+        progress_text = f"{frame_number}"
+    
     progress.set_postfix({
-        'memory_usage': '{:.2f}'.format(memory_usage).zfill(5) + 'GB',
-        'execution_providers': roop.globals.execution_providers,
-        'execution_threads': roop.globals.execution_threads
+        'processor': processor_name,
+        'frame': progress_text,
+        'memory': '{:.2f}'.format(memory_usage).zfill(5) + 'GB',
+        'gpu_memory': gpu_info,
+        'providers': roop.globals.execution_providers,
+        'threads': roop.globals.execution_threads
     })
     progress.refresh()
     progress.update(1)
