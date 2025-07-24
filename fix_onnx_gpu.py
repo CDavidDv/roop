@@ -21,13 +21,35 @@ def fix_onnx_gpu():
     except Exception as e:
         print(f"⚠️ Error: {e}")
     
-    # Paso 2: Instalar onnxruntime-gpu específico para Colab
-    print("📦 Paso 2: Instalando ONNX Runtime GPU...")
+    # Paso 2: Instalar numpy.typing si falta
+    print("📦 Paso 2: Verificando numpy.typing...")
     try:
-        # Intentar con versión específica para Colab
+        import numpy.typing
+        print("✅ numpy.typing disponible")
+    except ImportError:
+        print("📦 Instalando numpy.typing...")
+        try:
+            result = subprocess.run([
+                sys.executable, "-m", "pip", "install", "numpy>=1.26.0"
+            ], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("✅ numpy actualizado")
+            else:
+                print(f"⚠️ Error actualizando numpy: {result.stderr}")
+        except Exception as e:
+            print(f"⚠️ Error: {e}")
+    
+    # Paso 3: Instalar onnxruntime-gpu específico para Colab
+    print("📦 Paso 3: Instalando ONNX Runtime GPU...")
+    try:
+        # Forzar desinstalación completa
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "onnxruntime", "onnxruntime-gpu"], 
+                      capture_output=True, text=True)
+        
+        # Instalar versión específica para Colab
         result = subprocess.run([
             sys.executable, "-m", "pip", "install", 
-            "onnxruntime-gpu==1.15.1", "--force-reinstall"
+            "onnxruntime-gpu==1.15.1", "--no-cache-dir", "--force-reinstall"
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
@@ -38,7 +60,7 @@ def fix_onnx_gpu():
             print("📦 Intentando con versión alternativa...")
             result2 = subprocess.run([
                 sys.executable, "-m", "pip", "install", 
-                "onnxruntime-gpu", "--force-reinstall"
+                "onnxruntime-gpu", "--no-cache-dir", "--force-reinstall"
             ], capture_output=True, text=True)
             
             if result2.returncode == 0:
@@ -49,23 +71,49 @@ def fix_onnx_gpu():
     except Exception as e:
         print(f"❌ Error: {e}")
     
-    # Paso 3: Verificar instalación
-    print("📦 Paso 3: Verificando instalación...")
+    # Paso 4: Verificar instalación
+    print("📦 Paso 4: Verificando instalación...")
     try:
         import onnxruntime as ort
         print(f"ONNX Runtime version: {ort.__version__}")
         print(f"ONNX Runtime file: {ort.__file__}")
         
-        if 'onnxruntime-gpu' in ort.__file__:
+        # Verificar si es GPU o CPU de manera más precisa
+        ort_path = ort.__file__
+        if 'onnxruntime-gpu' in ort_path or 'gpu' in ort_path.lower():
             print("✅ ONNX Runtime GPU instalado correctamente")
         else:
             print("❌ ONNX Runtime CPU aún instalado")
+            print(f"   Ruta: {ort_path}")
             
         providers = ort.get_available_providers()
         print(f"Providers disponibles: {providers}")
         
         if 'CUDAExecutionProvider' in providers:
             print("✅ CUDA GPU disponible")
+            
+            # Probar crear una sesión con CUDA
+            try:
+                import numpy as np
+                # Crear un modelo simple para probar
+                import onnx
+                from onnx import helper
+                
+                # Crear un modelo ONNX simple
+                X = helper.make_tensor_value_info('X', onnx.TensorProto.FLOAT, [1, 3, 224, 224])
+                Y = helper.make_tensor_value_info('Y', onnx.TensorProto.FLOAT, [1, 3, 224, 224])
+                
+                node = helper.make_node('Identity', ['X'], ['Y'])
+                graph = helper.make_graph([node], 'test', [X], [Y])
+                model = helper.make_model(graph)
+                
+                # Probar con CUDA
+                session = ort.InferenceSession(model.SerializeToString(), 
+                                             providers=['CUDAExecutionProvider'])
+                print("✅ Sesión CUDA funcionando correctamente")
+                
+            except Exception as e:
+                print(f"⚠️ Error en sesión CUDA: {e}")
         else:
             print("❌ CUDA GPU no disponible")
             
@@ -78,6 +126,14 @@ def test_face_swapper():
     print("=" * 50)
     
     try:
+        # Verificar numpy.typing primero
+        try:
+            import numpy.typing
+            print("✅ numpy.typing disponible")
+        except ImportError as e:
+            print(f"❌ Error numpy.typing: {e}")
+            return
+        
         import roop.processors.frame.face_swapper as face_swapper
         
         print("Cargando modelo de face swapper...")
@@ -100,6 +156,8 @@ def test_face_swapper():
             
     except Exception as e:
         print(f"❌ Error probando face swapper: {e}")
+        import traceback
+        traceback.print_exc()
 
 def main():
     print("🚀 SOLUCIONADOR ONNX RUNTIME GPU - GOOGLE COLAB")
@@ -114,6 +172,13 @@ def main():
         print(f"Providers: {ort.get_available_providers()}")
     except ImportError:
         print("ONNX Runtime no instalado")
+    
+    # Verificar numpy.typing
+    try:
+        import numpy.typing
+        print("✅ numpy.typing disponible")
+    except ImportError:
+        print("❌ numpy.typing no disponible")
     
     # Preguntar si proceder
     response = input("\n¿Proceder con la instalación? (y/n): ")
