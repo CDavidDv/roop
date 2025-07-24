@@ -39,7 +39,7 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     return output_name
 
 def process_single_video_tesla_t4(source_path: str, target_path: str, output_path: str, 
-                                 gpu_memory_wait: int = 30, max_memory: int = 12, 
+                                 gpu_memory_wait: int = 30, max_memory: int = 31, 
                                  execution_threads: int = 31, temp_frame_quality: int = 100,
                                  keep_fps: bool = True) -> bool:
     """Procesar un solo video optimizado para Tesla T4"""
@@ -82,7 +82,7 @@ def process_single_video_tesla_t4(source_path: str, target_path: str, output_pat
         return False
 
 def process_video_batch_tesla_t4(source_path: str, target_videos: list, output_dir: str = None,
-                                gpu_memory_wait: int = 30, max_memory: int = 12,
+                                gpu_memory_wait: int = 30, max_memory: int = 31,
                                 execution_threads: int = 31, temp_frame_quality: int = 100,
                                 keep_fps: bool = True) -> None:
     """Procesar lote de videos optimizado para Tesla T4"""
