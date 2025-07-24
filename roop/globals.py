@@ -21,4 +21,4 @@ execution_providers: List[str] = []
 execution_threads: Optional[int] = None
 log_level: str = 'error'
 # Tiempo de espera entre procesadores para liberar memoria GPU (en segundos)
-gpu_memory_wait_time: int = 30
+gpu_memory_wait_time: int = 5
