@@ -2,6 +2,7 @@ from typing import Any, List, Callable
 import cv2
 import insightface
 import threading
+import os
 
 import roop.globals
 import roop.processors.frame.core
@@ -22,30 +23,79 @@ def get_face_swapper() -> Any:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../inswapper_128.onnx')
             
+            # Configurar variables de entorno para forzar GPU
+            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+            os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+            
             # Forzar uso de GPU si está disponible
             import onnxruntime as ort
             available_providers = ort.get_available_providers()
             
             print(f"[{NAME}] Proveedores disponibles: {available_providers}")
             
-            # Priorizar CUDA sobre CPU
-            if 'CUDAExecutionProvider' in available_providers:
-                # Usar solo CUDA para forzar GPU
-                providers = ['CUDAExecutionProvider']
-                print(f"[{NAME}] ✅ Forzando uso de GPU (CUDA)")
-                print(f"[{NAME}] Cargando modelo con proveedores: {providers}")
-            else:
-                # Fallback a CPU si CUDA no está disponible
-                providers = roop.globals.execution_providers
-                print(f"[{NAME}] ❌ CUDA no disponible, usando: {providers}")
+            # Intentar diferentes configuraciones de GPU
+            providers_to_try = [
+                ['CUDAExecutionProvider'],
+                ['CUDAExecutionProvider', 'CPUExecutionProvider'],
+                ['TensorrtExecutionProvider', 'CUDAExecutionProvider'],
+                ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+            ]
             
-            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
+            FACE_SWAPPER = None
             
-            # Verificar qué proveedores se aplicaron realmente
-            if hasattr(FACE_SWAPPER, 'providers'):
-                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
-            else:
-                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
+            for providers in providers_to_try:
+                try:
+                    print(f"[{NAME}] Intentando con proveedores: {providers}")
+                    
+                    # Configurar opciones específicas para CUDA
+                    provider_options = {}
+                    if 'CUDAExecutionProvider' in providers:
+                        provider_options['CUDAExecutionProvider'] = {
+                            'device_id': 0,
+                            'arena_extend_strategy': 'kNextPowerOfTwo',
+                            'gpu_mem_limit': 2 * 1024 * 1024 * 1024,  # 2GB
+                            'cudnn_conv_use_max_workspace': '1',
+                            'do_copy_in_default_stream': '1',
+                        }
+                    
+                    FACE_SWAPPER = insightface.model_zoo.get_model(
+                        model_path, 
+                        providers=providers,
+                        provider_options=provider_options
+                    )
+                    
+                    # Verificar que realmente se está usando GPU
+                    if hasattr(FACE_SWAPPER, 'providers'):
+                        actual_providers = FACE_SWAPPER.providers
+                        print(f"[{NAME}] ✅ Modelo cargado con proveedores: {actual_providers}")
+                        
+                        # Verificar que CUDA está siendo usado
+                        if any('CUDA' in provider for provider in actual_providers):
+                            print(f"[{NAME}] ✅ GPU CUDA confirmado en uso")
+                            break
+                        else:
+                            print(f"[{NAME}] ⚠️ GPU no confirmado, intentando siguiente configuración...")
+                            FACE_SWAPPER = None
+                            continue
+                    else:
+                        print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
+                        # Si no podemos verificar, asumimos que funciona
+                        break
+                        
+                except Exception as e:
+                    print(f"[{NAME}] ❌ Error con proveedores {providers}: {e}")
+                    FACE_SWAPPER = None
+                    continue
+            
+            # Si todos los intentos fallaron, usar CPU como último recurso
+            if FACE_SWAPPER is None:
+                print(f"[{NAME}] ⚠️ Todos los intentos de GPU fallaron, usando CPU")
+                try:
+                    FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=['CPUExecutionProvider'])
+                    print(f"[{NAME}] ✅ Modelo cargado con CPU como fallback")
+                except Exception as e:
+                    print(f"[{NAME}] ❌ Error crítico cargando modelo: {e}")
+                    raise e
                 
     return FACE_SWAPPER
 
