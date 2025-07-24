@@ -46,7 +46,7 @@ def get_optimal_settings_for_15gb() -> dict:
         'execution_threads': 8,  # Optimizado para 15GB
         'gpu_memory_wait': 5,  # Esperar 15s entre videos
         'temp_frame_quality': 100,  # Calidad balanceada
-        'temp_frame_format': 'jpg',  # Ahorrar espacio
+        'temp_frame_format': 'png',  # Ahorrar espacio
         'output_video_encoder': 'h264_nvenc',  # Usar encoder NVIDIA
         'output_video_quality': 100,  # Calidad balanceada
         'execution_provider': 'cuda'
