@@ -1,203 +1,209 @@
-# Procesamiento en Lote con ROOP
+# Procesamiento por Lotes con GPU - ROOP
 
-## Scripts Disponibles
+## 🚀 Configuración Optimizada para Google Colab Tesla T4
 
-### 1. `run_batch_array.py` (RECOMENDADO - Más Simple)
-**Solo modifica el array y ejecuta:**
+Este script permite procesar múltiples videos automáticamente con configuración optimizada para GPU Tesla T4.
 
-```python
-VIDEOS_TO_PROCESS = [
-    "/content/17.mp4",
-    "/content/18.mp4", 
-    "/content/19.mp4",
-    "/content/20.mp4"
-]
-```
+## ✨ Características
 
-**Uso:**
-```bash
-python run_batch_array.py
-```
+- **GPU Forzado**: Face swapper, face enhancer y face analyser usan GPU automáticamente
+- **Progreso en Tiempo Real**: Muestra el progreso detallado de cada video
+- **Gestión de Memoria**: Pausas automáticas entre procesadores para evitar errores de VRAM
+- **31 Hilos**: Configuración optimizada para máximo rendimiento
+- **Calidad Máxima**: Temp frame quality 100 por defecto
 
-**Nota**: El script detecta automáticamente el entorno virtual:
-- `roop_env/bin/python` (prioridad)
-- `venv/bin/python`
-- `env/bin/python`
-- `python` (fallback)
-
-**Solución NSFW**: Automáticamente desactiva la verificación NSFW para evitar errores de GPU.
-
-### 2. `run_batch_simple.py` (Configuración Completa)
-**Modifica la configuración completa:**
-
-```python
-# Imagen fuente
-SOURCE_IMAGE = "/content/SakuraAS.png"
-
-# Array de videos
-VIDEOS_TO_PROCESS = [
-    "/content/17.mp4",
-    "/content/18.mp4", 
-    "/content/19.mp4",
-    "/content/20.mp4"
-]
-
-# Directorio de salida
-OUTPUT_DIR = "/content/resultados"
-
-# Configuración
-GPU_MEMORY_WAIT = 30
-MAX_MEMORY = 11        # ← Tu valor
-EXECUTION_THREADS = 35 # ← Tu valor
-TEMP_FRAME_QUALITY = 100
-KEEP_FPS = True
-```
-
-**Uso:**
-```bash
-python run_batch_simple.py
-```
-
-### 3. `run_batch_processing.py` (Línea de Comandos)
-**Usa argumentos de línea de comandos:**
+## 🎯 Uso Rápido
 
 ```bash
 python run_batch_processing.py \
-  --source /content/SakuraAS.png \
-  --videos /content/17.mp4 /content/18.mp4 /content/19.mp4 /content/20.mp4 \
+  --source /content/DanielaAS.jpg \
+  --videos /content/113.mp4 /content/114.mp4 /content/115.mp4 /content/116.mp4 /content/117.mp4 /content/118.mp4 /content/119.mp4 /content/120.mp4 \
   --output-dir /content/resultados \
-  --gpu-memory-wait 30 \
+  --execution-threads 31 \
+  --temp-frame-quality 100 \
   --keep-fps
 ```
 
-## Características
+## ⚙️ Parámetros
 
-### ✅ **Gestión Automática de Memoria**
-- Pausa de 30s entre procesadores (face_swapper → face_enhancer)
-- Pausa de 10s entre videos diferentes
-- Liberación automática de cachés GPU
-- Monitoreo de VRAM en tiempo real
+| Parámetro | Descripción | Valor por Defecto |
+|-----------|-------------|-------------------|
+| `--source` | Imagen fuente | Requerido |
+| `--videos` | Lista de videos a procesar | Requerido |
+| `--output-dir` | Directorio de salida | Opcional |
+| `--execution-threads` | Número de hilos | 31 |
+| `--temp-frame-quality` | Calidad de frames temporales | 100 |
+| `--max-memory` | Memoria máxima en GB | 12 |
+| `--gpu-memory-wait` | Espera entre procesadores (segundos) | 30 |
+| `--keep-fps` | Mantener FPS original | True |
 
-### ✅ **Detección Automática de Entorno Virtual**
-- Busca automáticamente `roop_env/bin/python`
-- Fallback a otros entornos virtuales comunes
-- Compatible con diferentes configuraciones
+## 🔧 Configuración GPU
 
-### ✅ **Solución Automática para Errores NSFW**
-- Desactiva automáticamente la verificación NSFW
-- Evita errores de TensorFlow/CuDNN
-- Mensaje informativo: "⚠️ Saltando verificación NSFW para evitar conflictos de GPU..."
+### Face Swapper
+- **GPU**: CUDA forzado automáticamente
+- **Proveedores**: `['CUDAExecutionProvider']`
+- **Fallback**: CPU si CUDA no está disponible
 
-### ✅ **Nombres de Salida Automáticos**
-- **Entrada**: `17.mp4`, `18.mp4`, `19.mp4`, `20.mp4`
-- **Salida**: `SakuraAS17.mp4`, `SakuraAS18.mp4`, `SakuraAS19.mp4`, `SakuraAS20.mp4`
+### Face Enhancer
+- **GPU**: CUDA detectado automáticamente
+- **Dispositivo**: `'cuda'` cuando está disponible
+- **Fallback**: CPU si CUDA no está disponible
 
-### ✅ **Progreso y Estadísticas**
-- Muestra progreso: `🎬 PROCESANDO VIDEO 2/4: 18.mp4`
-- Tiempo de procesamiento por video
-- Resumen final con tasa de éxito
-- Manejo de errores individual
+### Face Analyser
+- **GPU**: CUDA forzado automáticamente
+- **Proveedores**: `['CUDAExecutionProvider']`
+- **Fallback**: CPU si CUDA no está disponible
 
-### ✅ **Verificaciones Automáticas**
-- Verifica que el source existe
-- Verifica que cada video existe
-- Crea directorio de salida si no existe
-- Continúa con el siguiente video si uno falla
+## 📊 Progreso en Tiempo Real
 
-## Solución al Problema NSFW
-
-**Problema**: Error "DNN library is not found" en el predictor NSFW
-**Causa**: Conflicto entre TensorFlow/CuDNN y GPU
-**Solución**: Desactivación automática del predictor NSFW
+El script muestra:
 
 ```
-⚠️ Saltando verificación NSFW para evitar conflictos de GPU...
-[FACE-SWAPPER] Forzando uso de GPU (CUDA)
-[FACE-ENHANCER] Forzando uso de GPU (CUDA)
-✅ Video procesado exitosamente: SakuraAS17.mp4
-```
-
-## Ejemplo de Salida
-
-```
-🚀 PROCESAMIENTO EN LOTE AUTOMÁTICO
+🚀 INICIANDO PROCESAMIENTO EN LOTE
 ============================================================
-📸 Source: /content/SakuraAS.png
-🎬 Videos a procesar: 4
-📁 Output: /content/resultados
+📸 Source: /content/DanielaAS.jpg
+🎬 Videos a procesar: 8
+⚙️ Configuración:
+   • GPU Memory Wait: 30s
+   • Max Memory: 12GB
+   • Execution Threads: 31
+   • Temp Frame Quality: 100
+   • Keep FPS: True
 ============================================================
 
-🎬 PROCESANDO VIDEO 1/4: 17.mp4
+📊 PROGRESO GENERAL: 1/8 (12.5%)
+⏱️ Tiempo transcurrido: 0.0s
+✅ Completados: 0 | ❌ Fallidos: 0
+
+🎬 PROCESANDO VIDEO: 113.mp4
+📸 Source: DanielaAS.jpg
+💾 Output: DanielaAS113.mp4
 ============================================================
-⚠️ Saltando verificación NSFW para evitar conflictos de GPU...
-[FACE-SWAPPER] Forzando uso de GPU (CUDA)
-[FACE-ENHANCER] Forzando uso de GPU (CUDA)
-✅ Video procesado exitosamente: SakuraAS17.mp4
-⏱️ Tiempo: 245.32 segundos
-
-⏳ Esperando 10 segundos...
-
-🎬 PROCESANDO VIDEO 2/4: 18.mp4
-============================================================
-...
+🔄 Iniciando procesamiento...
+⚙️ Configuración: 31 hilos, 12GB RAM, 30s GPU wait
+📊 Progreso en tiempo real:
+----------------------------------------
+  📈 [ROOP.FACE-SWAPPER] ✅ Forzando uso de GPU (CUDA)
+  📈 [ROOP.FACE-SWAPPER] Cargando modelo con proveedores: ['CUDAExecutionProvider']
+  📈 [ROOP.CORE] Creating temporary resources...
+  📈 [ROOP.CORE] Extracting frames with 30 FPS...
+  📈 [FACE-SWAPPER] Iniciando procesamiento...
+  📈 Processing face_swapper: 100%|██████████| 150/150 [02:30<00:00, 1.00frame/s]
+  📈 [FACE-ENHANCER] Iniciando procesamiento...
+  📈 Processing face_enhancer: 100%|██████████| 150/150 [01:45<00:00, 1.43frame/s]
+  📈 [ROOP.CORE] Creating video with 30 FPS...
+  📈 [ROOP.CORE] Restoring audio...
+  📈 [ROOP.CORE] Cleaning temporary resources...
+----------------------------------------
+✅ Video procesado exitosamente: DanielaAS113.mp4
+⏱️ Tiempo de procesamiento: 245.32 segundos
 ```
 
-## Configuración Recomendada
+## 🎭 Verificación GPU
 
-### Para GPUs con 8GB VRAM:
-```python
-GPU_MEMORY_WAIT = 30
-MAX_MEMORY = 8
-EXECUTION_THREADS = 6
-```
+Para verificar que GPU está funcionando:
 
-### Para GPUs con 12GB+ VRAM:
-```python
-GPU_MEMORY_WAIT = 20
-MAX_MEMORY = 11
-EXECUTION_THREADS = 35
-```
-
-### Para GPUs con 24GB+ VRAM:
-```python
-GPU_MEMORY_WAIT = 15
-MAX_MEMORY = 16
-EXECUTION_THREADS = 12
-```
-
-## Ventajas del Procesamiento en Lote
-
-1. **Automatización Completa**: Solo configura el array y ejecuta
-2. **Gestión de Memoria**: Evita errores de memoria GPU
-3. **Detección Automática**: Encuentra el entorno virtual correcto
-4. **Solución NSFW**: Evita errores de TensorFlow/CuDNN
-5. **Nombres Automáticos**: No necesitas especificar cada nombre de salida
-6. **Progreso Visual**: Ve el progreso en tiempo real
-7. **Recuperación de Errores**: Si un video falla, continúa con el siguiente
-8. **Estadísticas**: Resumen final con tasa de éxito
-9. **Configurabilidad**: Ajusta parámetros según tu GPU
-
-## Uso Rápido
-
-1. **Edita el array** en `run_batch_array.py`:
-```python
-VIDEOS_TO_PROCESS = [
-    "/content/17.mp4",
-    "/content/18.mp4", 
-    "/content/19.mp4",
-    "/content/20.mp4"
-]
-```
-
-2. **Ejecuta**:
 ```bash
-python run_batch_array.py
+python test_gpu_force.py
 ```
 
-3. **Resultados** en `/content/resultados/`:
-- `SakuraAS17.mp4`
-- `SakuraAS18.mp4`
-- `SakuraAS19.mp4`
-- `SakuraAS20.mp4`
+Salida esperada:
+```
+🚀 INICIANDO PRUEBAS DE GPU FORZADO
+==================================================
+🔍 VERIFICACIÓN DE GPU:
+========================================
+ONNX Runtime providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+✅ CUDA GPU disponible para ONNX Runtime
+PyTorch CUDA: True
+PyTorch GPU: Tesla T4
+PyTorch VRAM: 0.00GB
 
-¡Y listo! 🎉 
+🎭 PROBANDO FACE SWAPPER CON GPU:
+========================================
+[ROOP.FACE-SWAPPER] ✅ Forzando uso de GPU (CUDA)
+[ROOP.FACE-SWAPPER] Cargando modelo con proveedores: ['CUDAExecutionProvider']
+✅ Face swapper cargado exitosamente
+
+✨ PROBANDO FACE ENHANCER CON GPU:
+========================================
+[ROOP.FACE-ENHANCER] Forzando uso de GPU (CUDA)
+Dispositivo detectado: cuda
+✅ Face enhancer configurado para usar GPU
+
+🔍 PROBANDO FACE ANALYSER CON GPU:
+========================================
+[FACE_ANALYSER] Forzando uso de GPU (CUDA)
+✅ Analizador de rostros cargado exitosamente
+
+🎉 PRUEBAS COMPLETADAS
+==================================================
+```
+
+## 🚨 Solución de Problemas
+
+### Error: "Failed to create CUDAExecutionProvider"
+- **Causa**: ONNX Runtime GPU no instalado
+- **Solución**: Instalar `onnxruntime-gpu` en lugar de `onnxruntime`
+
+```bash
+pip uninstall onnxruntime
+pip install onnxruntime-gpu
+```
+
+### Error: "Out of memory"
+- **Causa**: VRAM insuficiente
+- **Solución**: Aumentar `--gpu-memory-wait` a 45-60 segundos
+
+### Error: "CUDA not available"
+- **Causa**: Drivers NVIDIA no actualizados
+- **Solución**: Actualizar drivers NVIDIA
+
+## 📈 Rendimiento Esperado
+
+### Tesla T4 (15GB VRAM)
+- **Face Swapper**: ~2-3 FPS
+- **Face Enhancer**: ~1-2 FPS
+- **Tiempo por video (1 min)**: ~3-5 minutos
+- **Lote de 8 videos**: ~30-45 minutos
+
+### Configuración Optimizada
+- **Hilos**: 31 (máximo para Colab)
+- **Memoria**: 12GB RAM
+- **GPU Wait**: 30s entre procesadores
+- **Calidad**: 100 (máxima)
+
+## 🎯 Ejemplo Completo
+
+```bash
+# 1. Verificar GPU
+python test_gpu_force.py
+
+# 2. Procesar lote de videos
+python run_batch_processing.py \
+  --source /content/DanielaAS.jpg \
+  --videos /content/113.mp4 /content/114.mp4 /content/115.mp4 \
+  --output-dir /content/resultados \
+  --execution-threads 31 \
+  --temp-frame-quality 100 \
+  --keep-fps
+
+# 3. Verificar resultados
+ls -la /content/resultados/
+```
+
+## 📝 Notas Importantes
+
+1. **GPU Forzado**: El face swapper ahora usa GPU automáticamente
+2. **Progreso Detallado**: Se muestra el progreso de cada paso
+3. **Gestión de Memoria**: Pausas automáticas evitan errores de VRAM
+4. **31 Hilos**: Configuración optimizada para Colab
+5. **Calidad Máxima**: Temp frame quality 100 por defecto
+
+## 🔄 Actualizaciones
+
+- ✅ GPU forzado en face swapper
+- ✅ Progreso en tiempo real
+- ✅ Gestión de memoria GPU
+- ✅ 31 hilos por defecto
+- ✅ Calidad máxima por defecto 

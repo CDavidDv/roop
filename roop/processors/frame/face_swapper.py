@@ -2,7 +2,6 @@ from typing import Any, List, Callable
 import cv2
 import insightface
 import threading
-import gc
 
 import roop.globals
 import roop.processors.frame.core
@@ -29,59 +28,24 @@ def get_face_swapper() -> Any:
             
             print(f"[{NAME}] Proveedores disponibles: {available_providers}")
             
-            # Configuración optimizada para Tesla T4
+            # Priorizar CUDA sobre CPU
             if 'CUDAExecutionProvider' in available_providers:
-                # Usar solo CUDA para forzar GPU con configuración optimizada
+                # Usar solo CUDA para forzar GPU
                 providers = ['CUDAExecutionProvider']
-                provider_options = [{
-                    'device_id': 0,
-                    'arena_extend_strategy': 'kNextPowerOfTwo',
-                    'gpu_mem_limit': 15 * 1024 * 1024 * 1024,  # 15GB para Tesla T4
-                    'cudnn_conv_use_max_workspace': '1',
-                    'do_copy_in_default_stream': '1',
-                }]
-                print(f"[{NAME}] ✅ Forzando uso de GPU (CUDA) - Optimizado para Tesla T4")
+                print(f"[{NAME}] ✅ Forzando uso de GPU (CUDA)")
                 print(f"[{NAME}] Cargando modelo con proveedores: {providers}")
-                print(f"[{NAME}] Configuración GPU: 15GB VRAM, optimizaciones habilitadas")
             else:
                 # Fallback a CPU si CUDA no está disponible
                 providers = roop.globals.execution_providers
-                provider_options = [{}]
                 print(f"[{NAME}] ❌ CUDA no disponible, usando: {providers}")
             
-            try:
-                # Crear sesión ONNX Runtime con configuración optimizada
-                session_options = ort.SessionOptions()
-                session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
-                session_options.intra_op_num_threads = 1
-                session_options.inter_op_num_threads = 1
-                
-                # Cargar modelo con configuración optimizada
-                FACE_SWAPPER = insightface.model_zoo.get_model(
-                    model_path, 
-                    providers=providers,
-                    provider_options=provider_options if 'CUDAExecutionProvider' in available_providers else None,
-                    session_options=session_options
-                )
-                
-                # Verificar qué proveedores se aplicaron realmente
-                if hasattr(FACE_SWAPPER, 'providers'):
-                    print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
-                else:
-                    print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
-                    
-                # Limpiar memoria después de cargar
-                gc.collect()
-                
-            except Exception as e:
-                print(f"[{NAME}] ❌ Error cargando modelo con GPU: {e}")
-                print(f"[{NAME}] 🔄 Intentando con CPU...")
-                
-                # Fallback a CPU
-                providers = ['CPUExecutionProvider']
-                FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
-                print(f"[{NAME}] Modelo cargado con CPU como fallback")
+            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
+            
+            # Verificar qué proveedores se aplicaron realmente
+            if hasattr(FACE_SWAPPER, 'providers'):
+                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
+            else:
+                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
                 
     return FACE_SWAPPER
 
@@ -109,8 +73,6 @@ def post_process() -> None:
     global FACE_SWAPPER
 
     FACE_SWAPPER = None
-    # Limpiar memoria GPU
-    gc.collect()
 
 
 def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:

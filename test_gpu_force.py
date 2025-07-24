@@ -71,22 +71,20 @@ def test_face_enhancer_gpu():
         # Importar el módulo de face enhancer
         import roop.processors.frame.face_enhancer as face_enhancer
         
-        # Verificar que el dispositivo se detecta correctamente
+        # Verificar el dispositivo
         device = face_enhancer.get_device()
         print(f"Dispositivo detectado: {device}")
         
         if device == 'cuda':
             print("✅ Face enhancer configurado para usar GPU")
-        elif device == 'mps':
-            print("✅ Face enhancer configurado para usar CoreML")
         else:
-            print("⚠️ Face enhancer usando CPU")
+            print(f"⚠️ Face enhancer usando: {device}")
             
     except Exception as e:
         print(f"❌ Error probando face enhancer: {e}")
 
 def test_face_analyser_gpu():
-    """Probar que el analizador de rostros usa GPU"""
+    """Probar que el face analyser usa GPU"""
     print("\n🔍 PROBANDO FACE ANALYSER CON GPU:")
     print("=" * 40)
     
@@ -94,7 +92,7 @@ def test_face_analyser_gpu():
         # Importar el módulo de face analyser
         import roop.face_analyser as face_analyser
         
-        # Verificar que el analizador se carga con GPU
+        # Verificar que el analizador se carga
         print("Cargando analizador de rostros...")
         analyser = face_analyser.get_face_analyser()
         
@@ -111,7 +109,7 @@ def test_face_analyser_gpu():
     except Exception as e:
         print(f"❌ Error probando face analyser: {e}")
 
-if __name__ == "__main__":
+def main():
     print("🚀 INICIANDO PRUEBAS DE GPU FORZADO")
     print("=" * 50)
     
@@ -128,4 +126,7 @@ if __name__ == "__main__":
     test_face_analyser_gpu()
     
     print("\n🎉 PRUEBAS COMPLETADAS")
-    print("=" * 50) 
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main() 
