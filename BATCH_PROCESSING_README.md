@@ -143,13 +143,29 @@ Dispositivo detectado: cuda
 ## 🚨 Solución de Problemas
 
 ### Error: "Failed to create CUDAExecutionProvider"
-- **Causa**: ONNX Runtime GPU no instalado
-- **Solución**: Instalar `onnxruntime-gpu` en lugar de `onnxruntime`
+- **Causa**: ONNX Runtime GPU no instalado o conflicto de versiones
+- **Solución**: Usar el script de reparación automática
 
 ```bash
+# Solución automática (RECOMENDADO)
+python fix_onnx_gpu.py
+
+# O solución manual
 pip uninstall onnxruntime
-pip install onnxruntime-gpu
+pip install onnxruntime-gpu==1.15.1 --force-reinstall
 ```
+
+### Error: "Applied providers: ['CPUExecutionProvider']"
+- **Causa**: ONNX Runtime está usando CPU en lugar de GPU
+- **Solución**: Ejecutar el script de reparación
+
+```bash
+python fix_onnx_gpu.py
+```
+
+### Error: "Unable to register cuDNN factory"
+- **Causa**: Conflicto de librerías CUDA en Colab
+- **Solución**: Normal, no afecta el funcionamiento. El sistema cae automáticamente a CPU y continúa.
 
 ### Error: "Out of memory"
 - **Causa**: VRAM insuficiente
