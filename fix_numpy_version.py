@@ -7,50 +7,95 @@ import os
 import sys
 import subprocess
 
-def fix_numpy_version():
-    """Solucionar conflicto de versiones de NumPy"""
-    print("🔧 SOLUCIONANDO CONFLICTO DE VERSIONES NUMPY")
+def force_numpy_downgrade():
+    """Forzar downgrade de NumPy de manera más agresiva"""
+    print("🔧 FORZANDO DOWNGRADE DE NUMPY")
     print("=" * 50)
     
-    # Verificar numpy actual
+    # Paso 1: Desinstalar numpy completamente
+    print("📦 Paso 1: Desinstalando NumPy completamente...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "numpy"], 
+                      capture_output=True, text=True)
+        print("✅ NumPy desinstalado")
+    except Exception as e:
+        print(f"⚠️ Error: {e}")
+    
+    # Paso 2: Limpiar caché de pip
+    print("📦 Paso 2: Limpiando caché de pip...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "cache", "purge"], 
+                      capture_output=True, text=True)
+        print("✅ Caché limpiado")
+    except Exception as e:
+        print(f"⚠️ Error: {e}")
+    
+    # Paso 3: Instalar numpy 1.26.4 específicamente
+    print("📦 Paso 3: Instalando NumPy 1.26.4...")
+    try:
+        result = subprocess.run([
+            sys.executable, "-m", "pip", "install", 
+            "numpy==1.26.4", "--no-cache-dir", "--force-reinstall"
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print("✅ NumPy 1.26.4 instalado")
+        else:
+            print(f"❌ Error instalando NumPy: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+    
+    # Paso 4: Verificar instalación
+    print("📦 Paso 4: Verificando instalación...")
     try:
         import numpy as np
-        print(f"NumPy version actual: {np.__version__}")
+        print(f"✅ NumPy instalado: {np.__version__}")
         
-        if np.__version__.startswith('2.'):
-            print("❌ NumPy 2.x detectado - incompatible con las librerías")
-            print("📦 Downgradeando a NumPy 1.x...")
-            
-            # Desinstalar numpy actual
-            subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "numpy"], 
-                          capture_output=True, text=True)
-            
-            # Instalar numpy 1.x compatible
-            result = subprocess.run([
-                sys.executable, "-m", "pip", "install", "numpy==1.26.4"
-            ], capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                print("✅ NumPy downgradeado exitosamente")
-                
-                # Verificar nueva versión
-                try:
-                    import numpy as np
-                    print(f"✅ Nueva versión NumPy: {np.__version__}")
-                    return True
-                except ImportError:
-                    print("❌ Error importando NumPy después del downgrade")
-                    return False
-            else:
-                print(f"❌ Error downgradeando NumPy: {result.stderr}")
-                return False
-        else:
-            print("✅ NumPy versión compatible")
+        if np.__version__.startswith('1.'):
+            print("✅ Versión compatible instalada")
             return True
+        else:
+            print(f"❌ Versión incorrecta: {np.__version__}")
+            return False
             
-    except ImportError:
-        print("❌ NumPy no instalado")
+    except ImportError as e:
+        print(f"❌ Error importando NumPy: {e}")
         return False
+
+def test_numpy_modules():
+    """Probar módulos de NumPy"""
+    print("\n🧪 PROBANDO MÓDULOS NUMPY")
+    print("=" * 50)
+    
+    try:
+        import numpy as np
+        print(f"✅ NumPy: {np.__version__}")
+        
+        # Probar numpy.typing
+        try:
+            import numpy.typing
+            print("✅ numpy.typing disponible")
+        except ImportError as e:
+            print(f"❌ numpy.typing: {e}")
+        
+        # Probar numpy.strings
+        try:
+            import numpy.strings
+            print("✅ numpy.strings disponible")
+        except ImportError as e:
+            print(f"❌ numpy.strings: {e}")
+        
+        # Probar numpy.core
+        try:
+            import numpy.core
+            print("✅ numpy.core disponible")
+        except ImportError as e:
+            print(f"❌ numpy.core: {e}")
+            
+    except ImportError as e:
+        print(f"❌ Error NumPy: {e}")
 
 def test_libraries():
     """Probar que las librerías funcionan"""
@@ -119,8 +164,8 @@ def test_face_swapper():
         print(f"❌ Error probando face swapper: {e}")
 
 def main():
-    print("🚀 SOLUCIONADOR CONFLICTO NUMPY")
-    print("=" * 50)
+    print("🚀 SOLUCIONADOR CONFLICTO NUMPY - VERSIÓN MEJORADA")
+    print("=" * 60)
     
     # Verificar estado actual
     print("🔍 Estado actual:")
@@ -135,10 +180,11 @@ def main():
         print("NumPy: No instalado")
     
     # Preguntar si proceder
-    response = input("\n¿Proceder con la corrección? (y/n): ")
+    response = input("\n¿Proceder con la corrección forzada? (y/n): ")
     
     if response.lower() in ['y', 'yes', 'sí', 'si']:
-        if fix_numpy_version():
+        if force_numpy_downgrade():
+            test_numpy_modules()
             test_libraries()
             test_face_swapper()
             
@@ -148,6 +194,9 @@ def main():
             print("python test_gpu_force.py")
         else:
             print("\n❌ No se pudo solucionar el problema")
+            print("Intenta manualmente:")
+            print("pip uninstall numpy -y")
+            print("pip install numpy==1.26.4 --no-cache-dir")
     else:
         print("❌ Proceso cancelado")
 
