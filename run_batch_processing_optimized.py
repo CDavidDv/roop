@@ -82,27 +82,75 @@ def process_single_video_optimized(source_path: str, target_path: str, output_pa
         cmd.append('--keep-fps')
     
     try:
-        # Ejecutar comando
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"✅ Video procesado exitosamente: {output_path}")
-        return True
+        # Ejecutar comando con salida en tiempo real
+        print("🚀 Iniciando procesamiento...")
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        
+        # Monitorear salida en tiempo real
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                # Filtrar solo mensajes importantes
+                line = output.strip()
+                if any(keyword in line.lower() for keyword in ['progress', 'processing', 'frame', 'video', 'error', 'warning']):
+                    print(f"[ROOP] {line}")
+        
+        return_code = process.poll()
+        
+        if return_code == 0:
+            print(f"✅ Video procesado exitosamente: {output_path}")
+            return True
+        else:
+            print(f"❌ Error procesando {target_path} (código: {return_code})")
+            return False
+            
     except subprocess.CalledProcessError as e:
         print(f"❌ Error procesando {target_path}:")
         print(f"STDOUT: {e.stdout}")
         print(f"STDERR: {e.stderr}")
         return False
 
-def monitor_gpu_during_processing(monitor: GPUMonitor, stop_event: threading.Event):
-    """Monitorear GPU durante el procesamiento"""
+def monitor_gpu_during_processing(monitor: GPUMonitor, stop_event: threading.Event, video_name: str = ""):
+    """Monitorear GPU durante el procesamiento con información detallada"""
+    last_vram = 0
+    last_ram = 0
+    
     while not stop_event.is_set():
         try:
             gpu_info = monitor.get_gpu_info()
             if gpu_info:
-                vram_percent = (gpu_info[0]['memory_used_mb'] / gpu_info[0]['memory_total_mb']) * 100
-                if vram_percent > 90:
-                    print(f"⚠️ VRAM alta: {vram_percent:.1f}% - Considera pausar el procesamiento")
-                elif vram_percent > 80:
-                    print(f"📊 VRAM: {vram_percent:.1f}%")
+                gpu = gpu_info[0]  # Tesla T4
+                vram_percent = (gpu['memory_used_mb'] / gpu['memory_total_mb']) * 100
+                vram_changed = abs(vram_percent - last_vram) > 2
+                last_vram = vram_percent
+                
+                ram = monitor.get_ram_usage()
+                ram_changed = abs(ram['percent'] - last_ram) > 3
+                last_ram = ram['percent']
+                
+                # Solo mostrar si hay cambios significativos
+                if vram_changed or ram_changed:
+                    timestamp = time.strftime('%H:%M:%S')
+                    print(f"\n📊 [{timestamp}] MONITOREO GPU - {video_name}")
+                    print(f"    VRAM: {gpu['memory_used_mb']}MB / {gpu['memory_total_mb']}MB ({vram_percent:.1f}%)")
+                    print(f"    RAM: {ram['used_gb']:.1f}GB / {ram['total_gb']:.1f}GB ({ram['percent']:.1f}%)")
+                    print(f"    GPU Util: {gpu['utilization_percent']}% | Temp: {gpu['temperature_celsius']}°C")
+                    
+                    # Alertas
+                    if vram_percent > 90:
+                        print("    ⚠️  ALERTA: VRAM muy alta!")
+                    elif vram_percent > 80:
+                        print("    ⚠️  VRAM alta")
+                    elif vram_percent > 50:
+                        print("    ✅ VRAM en uso activo")
+                    
+                    if ram['percent'] > 90:
+                        print("    ⚠️  ALERTA: RAM muy alta!")
+                    elif ram['percent'] > 80:
+                        print("    ⚠️  RAM alta")
+                
             time.sleep(10)  # Verificar cada 10 segundos
         except Exception as e:
             print(f"Error en monitoreo: {e}")
@@ -147,13 +195,7 @@ def process_video_batch_optimized(source_path: str, target_videos: list, output_
     if monitor_gpu:
         try:
             monitor = GPUMonitor()
-            monitor_thread = threading.Thread(
-                target=monitor_gpu_during_processing, 
-                args=(monitor, stop_monitoring),
-                daemon=True
-            )
-            monitor_thread.start()
-            print("📊 Monitoreo de GPU iniciado")
+            print("📊 Monitoreo de GPU habilitado")
         except Exception as e:
             print(f"⚠️ No se pudo iniciar monitoreo: {e}")
     
@@ -181,9 +223,26 @@ def process_video_batch_optimized(source_path: str, target_videos: list, output_
             successful_videos += 1
             continue
         
+        # Iniciar monitoreo específico para este video
+        video_name = Path(target_video).stem
+        if monitor_gpu and monitor:
+            stop_monitoring.clear()
+            monitor_thread = threading.Thread(
+                target=monitor_gpu_during_processing, 
+                args=(monitor, stop_monitoring, video_name),
+                daemon=True
+            )
+            monitor_thread.start()
+            print(f"📊 Monitoreo iniciado para: {video_name}")
+        
         # Procesar video
         start_time = time.time()
         success = process_single_video_optimized(source_path, target_video, output_path, settings, keep_fps)
+        
+        # Detener monitoreo para este video
+        if monitor_gpu and monitor:
+            stop_monitoring.set()
+            time.sleep(1)  # Dar tiempo para que se detenga
         
         if success:
             successful_videos += 1
@@ -196,11 +255,6 @@ def process_video_batch_optimized(source_path: str, target_videos: list, output_
         if i < total_videos:  # No esperar después del último video
             print(f"⏳ Esperando {settings['gpu_memory_wait']}s para liberar memoria GPU...")
             time.sleep(settings['gpu_memory_wait'])
-    
-    # Detener monitoreo
-    if monitor_gpu and monitor:
-        stop_monitoring.set()
-        print("📊 Monitoreo de GPU detenido")
     
     # Resumen final
     print("\n" + "=" * 70)
