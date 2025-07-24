@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script para procesar múltiples videos automáticamente con ROOP
-Optimizado para Google Colab con Tesla T4
+Script de procesamiento por lotes optimizado para Tesla T4 en Google Colab
+Específicamente diseñado para usar GPU en face swapper
 """
 
 import os
@@ -34,16 +34,14 @@ def check_file_exists(file_path: str, file_type: str) -> bool:
 
 def get_output_filename(source_name: str, target_name: str) -> str:
     """Generar nombre de archivo de salida"""
-    # Extraer nombre base del target (sin extensión)
     target_base = Path(target_name).stem
-    # Crear nombre de salida: source + número del video
     output_name = f"{source_name}_{target_base}.mp4"
     return output_name
 
-def process_single_video(source_path: str, target_path: str, output_path: str, 
-                        gpu_memory_wait: int = 30, max_memory: int = 12, 
-                        execution_threads: int = 31, temp_frame_quality: int = 100,
-                        keep_fps: bool = True) -> bool:
+def process_single_video_tesla_t4(source_path: str, target_path: str, output_path: str, 
+                                 gpu_memory_wait: int = 30, max_memory: int = 12, 
+                                 execution_threads: int = 31, temp_frame_quality: int = 100,
+                                 keep_fps: bool = True) -> bool:
     """Procesar un solo video optimizado para Tesla T4"""
     
     print(f"\n🎬 PROCESANDO: {target_path}")
@@ -64,7 +62,8 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         '--execution-threads', str(execution_threads),
         '--temp-frame-quality', str(temp_frame_quality),
         '--output-video-encoder', 'h264_nvenc',
-        '--output-video-quality', '35'
+        '--output-video-quality', '35',
+        '--temp-frame-format', 'png'
     ]
     
     if keep_fps:
@@ -82,13 +81,13 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         print(f"STDERR: {e.stderr}")
         return False
 
-def process_video_batch(source_path: str, target_videos: list, output_dir: str = None,
-                       gpu_memory_wait: int = 30, max_memory: int = 12,
-                       execution_threads: int = 31, temp_frame_quality: int = 100,
-                       keep_fps: bool = True) -> None:
+def process_video_batch_tesla_t4(source_path: str, target_videos: list, output_dir: str = None,
+                                gpu_memory_wait: int = 30, max_memory: int = 12,
+                                execution_threads: int = 31, temp_frame_quality: int = 100,
+                                keep_fps: bool = True) -> None:
     """Procesar lote de videos optimizado para Tesla T4"""
     
-    print("🚀 INICIANDO PROCESAMIENTO EN LOTE - OPTIMIZADO PARA TESLA T4")
+    print("🚀 INICIANDO PROCESAMIENTO EN LOTE - TESLA T4 OPTIMIZADO")
     print("=" * 70)
     print(f"📸 Source: {source_path}")
     print(f"🎬 Videos a procesar: {len(target_videos)}")
@@ -98,6 +97,7 @@ def process_video_batch(source_path: str, target_videos: list, output_dir: str =
     print(f"🎨 Quality: {temp_frame_quality}")
     print(f"🎯 Keep FPS: {keep_fps}")
     print(f"⚡ Encoder: h264_nvenc (NVIDIA)")
+    print(f"📁 Format: PNG (sin pérdida)")
     print("=" * 70)
     
     # Verificar que el source existe
@@ -132,7 +132,7 @@ def process_video_batch(source_path: str, target_videos: list, output_dir: str =
         
         # Procesar video
         start_time = time.time()
-        success = process_single_video(
+        success = process_single_video_tesla_t4(
             source_path=source_path,
             target_path=target_video,
             output_path=output_path,
@@ -152,8 +152,8 @@ def process_video_batch(source_path: str, target_videos: list, output_dir: str =
         
         # Pausa entre videos para liberar memoria GPU
         if i < len(target_videos):
-            print(f"\n⏳ Esperando 15 segundos antes del siguiente video...")
-            time.sleep(15)
+            print(f"\n⏳ Esperando 20 segundos antes del siguiente video...")
+            time.sleep(20)
     
     # Resumen final
     print("\n" + "=" * 70)
@@ -184,7 +184,7 @@ def main():
     args = parser.parse_args()
     
     # Procesar lote de videos
-    process_video_batch(
+    process_video_batch_tesla_t4(
         source_path=args.source,
         target_videos=args.videos,
         output_dir=args.output_dir,
