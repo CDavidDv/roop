@@ -167,6 +167,27 @@ python fix_onnx_gpu.py
 - **Causa**: Conflicto de librerías CUDA en Colab
 - **Solución**: Normal, no afecta el funcionamiento. El sistema cae automáticamente a CPU y continúa.
 
+### Error: "NumPy 2.x cannot be run in NumPy 1.x"
+- **Causa**: Conflicto de versiones de NumPy
+- **Solución**: Downgradear NumPy a versión 1.x
+
+```bash
+# Solución automática (RECOMENDADO)
+python fix_numpy_version.py
+
+# O solución manual
+pip uninstall numpy
+pip install numpy==1.26.4
+```
+
+### Error: "_ARRAY_API not found"
+- **Causa**: NumPy 2.x incompatible con librerías compiladas para NumPy 1.x
+- **Solución**: Usar el script de corrección de NumPy
+
+```bash
+python fix_numpy_version.py
+```
+
 ### Error: "Out of memory"
 - **Causa**: VRAM insuficiente
 - **Solución**: Aumentar `--gpu-memory-wait` a 45-60 segundos
