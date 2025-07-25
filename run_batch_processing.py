@@ -50,7 +50,7 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
     
     # Construir comando
     cmd = [
-        "roop_env/bin/python", 'run.py',
+        sys.executable, 'run.py',
         '--source', source_path,
         '--target', target_path,
         '-o', output_path,
