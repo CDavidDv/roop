@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script completo para configurar Roop desde cero
+Script para arreglar NumPy y descargar modelos originales
 """
 
 import os
@@ -38,109 +38,8 @@ def fix_numpy():
         print(f"❌ Error arreglando NumPy: {e}")
         return False
 
-def install_dependencies():
-    """Instala todas las dependencias necesarias"""
-    print("🔧 INSTALANDO DEPENDENCIAS")
-    print("=" * 50)
-    
-    dependencies = [
-        "onnxruntime",
-        "insightface",
-        "pillow",
-        "requests",
-        "tqdm"
-    ]
-    
-    for dep in dependencies:
-        try:
-            print(f"🔄 Instalando {dep}...")
-            result = subprocess.run([
-                sys.executable, "-m", "pip", "install", dep
-            ], capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0:
-                print(f"✅ {dep} instalado correctamente")
-            else:
-                print(f"⚠️ Error instalando {dep}: {result.stderr}")
-                
-        except Exception as e:
-            print(f"❌ Error instalando {dep}: {e}")
-
-def install_opennsfw2():
-    """Instala opennsfw2 o crea un mock"""
-    print("🔧 INSTALANDO OPENNSFW2")
-    print("=" * 50)
-    
-    try:
-        # Intentar instalar desde PyPI
-        print("🔄 Intentando instalar opennsfw2 desde PyPI...")
-        result = subprocess.run([
-            sys.executable, "-m", "pip", "install", "opennsfw2"
-        ], capture_output=True, text=True, timeout=300)
-        
-        if result.returncode == 0:
-            print("✅ opennsfw2 instalado desde PyPI")
-            return True
-        else:
-            print("⚠️ Error desde PyPI, intentando desde GitHub...")
-            
-            # Intentar desde GitHub
-            result = subprocess.run([
-                sys.executable, "-m", "pip", "install", 
-                "git+https://github.com/bhky/opennsfw2.git"
-            ], capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0:
-                print("✅ opennsfw2 instalado desde GitHub")
-                return True
-            else:
-                print("⚠️ No se pudo instalar opennsfw2, creando mock...")
-                return create_opennsfw2_mock()
-                
-    except Exception as e:
-        print(f"❌ Error instalando opennsfw2: {e}")
-        return create_opennsfw2_mock()
-
-def create_opennsfw2_mock():
-    """Crea un mock de opennsfw2"""
-    print("🔧 CREANDO MOCK DE OPENNSFW2")
-    print("=" * 50)
-    
-    mock_code = '''
-"""
-Mock de opennsfw2 para evitar errores de importación
-"""
-
-class NSFWDetector:
-    def __init__(self):
-        pass
-    
-    def predict(self, image):
-        # Retorna un valor seguro (no NSFW)
-        return 0.1
-
-def predict_image(image):
-    # Función mock que siempre retorna que no es NSFW
-    return 0.1
-'''
-    
-    try:
-        # Crear directorio si no existe
-        os.makedirs("opennsfw2", exist_ok=True)
-        
-        # Crear archivo __init__.py
-        with open("opennsfw2/__init__.py", "w") as f:
-            f.write(mock_code)
-        
-        print("✅ Mock de opennsfw2 creado")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error creando mock: {e}")
-        return False
-
 def download_original_models():
-    """Descarga los modelos originales"""
+    """Descarga los modelos originales que usabas"""
     print("📥 DESCARGANDO MODELOS ORIGINALES")
     print("=" * 50)
     
@@ -252,29 +151,14 @@ import os
 sys.path.insert(0, os.getcwd())
 
 try:
-    # Probar importaciones básicas
+    # Importar roop
+    from roop import core
+    print("✅ Roop importado correctamente")
+    
+    # Probar que no hay errores de NumPy
     import cv2
     import numpy as np
-    import onnxruntime
-    print("✅ Importaciones básicas funcionando")
-    
-    # Probar insightface
-    import insightface
-    print("✅ InsightFace importado")
-    
-    # Probar opennsfw2 (mock o real)
-    try:
-        import opennsfw2
-        print("✅ opennsfw2 importado")
-    except ImportError:
-        print("⚠️ opennsfw2 no disponible, usando mock")
-    
-    # Probar roop
-    from roop import core
-    print("✅ roop.core importado")
-    
-    from roop import ui
-    print("✅ roop.ui importado")
+    print("✅ OpenCV y NumPy funcionando")
     
     print("✅ Roop está listo para usar")
     
@@ -296,7 +180,7 @@ except Exception as e:
 
 def main():
     """Función principal"""
-    print("🚀 CONFIGURACIÓN COMPLETA DE ROOP")
+    print("🚀 ARREGLANDO NUMPY Y DESCARGANDO MODELOS")
     print("=" * 60)
     
     # Paso 1: Arreglar NumPy
@@ -304,34 +188,24 @@ def main():
         print("❌ Error arreglando NumPy")
         return 1
     
-    # Paso 2: Instalar dependencias
-    install_dependencies()
-    
-    # Paso 3: Instalar opennsfw2
-    if not install_opennsfw2():
-        print("❌ Error instalando opennsfw2")
-        return 1
-    
-    # Paso 4: Descargar modelos originales
+    # Paso 2: Descargar modelos originales
     if not download_original_models():
         print("❌ Error descargando modelos originales")
         return 1
     
-    # Paso 5: Descargar modelos InsightFace
+    # Paso 3: Descargar modelos InsightFace
     if not download_insightface_models():
         print("❌ Error descargando modelos InsightFace")
         return 1
     
-    # Paso 6: Probar Roop
+    # Paso 4: Probar Roop
     if not test_roop():
         print("❌ Error probando Roop")
         return 1
     
-    print("\n🎉 ¡ROOP CONFIGURADO COMPLETAMENTE!")
+    print("\n🎉 ¡TODO LISTO!")
     print("=" * 50)
     print("✅ NumPy arreglado")
-    print("✅ Todas las dependencias instaladas")
-    print("✅ opennsfw2 disponible")
     print("✅ Modelos originales descargados")
     print("✅ Modelos InsightFace descargados")
     print("✅ Roop funcionando correctamente")

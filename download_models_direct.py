@@ -64,11 +64,10 @@ try:
             print(f"  ❌ {model} - NO ENCONTRADO")
     
     print("✅ Descarga de modelos completada")
-    return True
     
 except Exception as e:
     print(f"❌ Error descargando modelos: {e}")
-    return False
+    raise
 """
     
     try:
@@ -127,11 +126,10 @@ try:
     print("✅ Detección facial funcionando")
     
     print("✅ Todos los modelos funcionan correctamente")
-    return True
     
 except Exception as e:
     print(f"❌ Error probando modelos: {e}")
-    return False
+    raise
 """
     
     try:
