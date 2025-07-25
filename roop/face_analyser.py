@@ -2,6 +2,8 @@ import threading
 from typing import Any, Optional, List
 import insightface
 import numpy
+import cv2
+import os
 
 import roop.globals
 from roop.typing import Frame, Face
@@ -15,22 +17,30 @@ def get_face_analyser() -> Any:
 
     with THREAD_LOCK:
         if FACE_ANALYSER is None:
-            # Forzar uso de GPU si está disponible
-            import onnxruntime as ort
-            available_providers = ort.get_available_providers()
-            
-            # Priorizar CUDA sobre CPU
-            if 'CUDAExecutionProvider' in available_providers:
-                # Usar solo CUDA para forzar GPU
-                providers = ['CUDAExecutionProvider']
-                print("[FACE_ANALYSER] Forzando uso de GPU (CUDA)")
+            # Verificar si existe el modelo original
+            model_path = "models/inswapper_128.onnx"
+            if os.path.exists(model_path):
+                print("[FACE_ANALYSER] Usando modelo original inswapper_128.onnx")
+                # Usar InsightFace con modelo personalizado
+                FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+                FACE_ANALYSER.prepare(ctx_id=0)
             else:
-                # Fallback a CPU si CUDA no está disponible
-                providers = roop.globals.execution_providers
-                print(f"[FACE_ANALYSER] CUDA no disponible, usando: {providers}")
-            
-            FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l', providers=providers)
-            FACE_ANALYSER.prepare(ctx_id=0)
+                # Fallback a InsightFace estándar
+                import onnxruntime as ort
+                available_providers = ort.get_available_providers()
+                
+                # Priorizar CUDA sobre CPU
+                if 'CUDAExecutionProvider' in available_providers:
+                    # Usar solo CUDA para forzar GPU
+                    providers = ['CUDAExecutionProvider']
+                    print("[FACE_ANALYSER] Forzando uso de GPU (CUDA)")
+                else:
+                    # Fallback a CPU si CUDA no está disponible
+                    providers = roop.globals.execution_providers
+                    print(f"[FACE_ANALYSER] CUDA no disponible, usando: {providers}")
+                
+                FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l', providers=providers)
+                FACE_ANALYSER.prepare(ctx_id=0)
     return FACE_ANALYSER
 
 
