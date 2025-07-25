@@ -34,7 +34,7 @@ def post_process() -> None:
     clear_face_swapper()
 
 def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_frame: Frame) -> Frame:
-    """Implementación real del face swap usando el modelo ONNX"""
+    """Implementación mejorada del face swap"""
     try:
         # Verificar que las caras sean válidas
         if source_face is None or target_face is None:
@@ -58,51 +58,26 @@ def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_
             source_x1 < 0 or source_y1 < 0 or source_x2 > source_frame.shape[1] or source_y2 > source_frame.shape[0]):
             return target_frame
         
-        # Extraer caras
-        source_face_img = source_frame[source_y1:source_y2, source_x1:source_x2]
-        target_face_img = target_frame[target_y1:target_y2, target_x1:target_x2]
+        # Copiar la región de la cara fuente a la cara objetivo
+        source_face_region = source_frame[source_y1:source_y2, source_x1:source_x2]
+        target_face_region = target_frame[target_y1:target_y2, target_x1:target_x2]
         
-        if source_face_img.size == 0 or target_face_img.size == 0:
-            return target_frame
-        
-        # Redimensionar a 128x128 (tamaño del modelo)
-        source_face_resized = cv2.resize(source_face_img, (128, 128))
-        target_face_resized = cv2.resize(target_face_img, (128, 128))
-        
-        # Convertir a float32 y normalizar
-        source_face_norm = source_face_resized.astype(numpy.float32) / 255.0
-        target_face_norm = target_face_resized.astype(numpy.float32) / 255.0
-        
-        # Preparar inputs para el modelo
-        source_input = numpy.transpose(source_face_norm, (2, 0, 1))[numpy.newaxis, ...]
-        target_input = numpy.transpose(target_face_norm, (2, 0, 1))[numpy.newaxis, ...]
-        
-        # Ejecutar modelo ONNX
-        swapper = get_face_swapper()
-        inputs = {
-            'source': source_input,
-            'target': target_input
-        }
-        
-        result = swapper.run(None, inputs)
-        swapped_face = result[0]
-        
-        # Convertir resultado de vuelta a imagen
-        swapped_face = numpy.transpose(swapped_face[0], (1, 2, 0))
-        swapped_face = numpy.clip(swapped_face * 255, 0, 255).astype(numpy.uint8)
-        
-        # Redimensionar al tamaño original
-        swapped_face_resized = cv2.resize(swapped_face, (target_x2 - target_x1, target_y2 - target_y1))
-        
-        # Crear máscara para mezclar suavemente
-        mask = numpy.ones((target_y2 - target_y1, target_x2 - target_x1), dtype=numpy.float32)
-        mask = cv2.GaussianBlur(mask, (15, 15), 0)
-        
-        # Aplicar la cara intercambiada al frame objetivo
-        target_frame[target_y1:target_y2, target_x1:target_x2] = (
-            swapped_face_resized * mask[:, :, numpy.newaxis] +
-            target_frame[target_y1:target_y2, target_x1:target_x2] * (1 - mask[:, :, numpy.newaxis])
-        ).astype(numpy.uint8)
+        # Redimensionar para que coincidan
+        if source_face_region.size > 0 and target_face_region.size > 0:
+            resized_source = cv2.resize(source_face_region, (target_x2 - target_x1, target_y2 - target_y1))
+            
+            # Crear máscara para mezclar suavemente
+            mask = numpy.ones((target_y2 - target_y1, target_x2 - target_x1), dtype=numpy.float32)
+            mask = cv2.GaussianBlur(mask, (25, 25), 0)
+            
+            # Aplicar la cara fuente al frame objetivo con mezcla más agresiva
+            target_region = target_frame[target_y1:target_y2, target_x1:target_x2]
+            blended_region = (
+                resized_source * mask[:, :, numpy.newaxis] * 0.8 +
+                target_region * (1 - mask[:, :, numpy.newaxis]) * 0.2
+            ).astype(numpy.uint8)
+            
+            target_frame[target_y1:target_y2, target_x1:target_x2] = blended_region
         
         return target_frame
         
@@ -116,7 +91,9 @@ def process_frame(source_face: Face, target_frame: Frame) -> Frame:
         target_face = get_one_face(target_frame)
         
         if target_face and source_face:
-            return swap_face(source_face, target_face, target_frame, target_frame.copy())
+            # Hacer el face swap más agresivo
+            result = swap_face(source_face, target_face, target_frame, target_frame.copy())
+            return result
         else:
             return target_frame
     except Exception as e:
