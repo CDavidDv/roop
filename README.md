@@ -4,7 +4,7 @@ Sistema de face swap optimizado para GPU con las versiones más recientes de tod
 
 ## 🚀 Características
 
-- **Versiones actualizadas**: NumPy 2.x, PyTorch 2.2.0, TensorFlow 2.16.1, ONNX Runtime 1.17.0
+- **Versiones actualizadas**: NumPy 2.2.0, PyTorch 2.2.0, TensorFlow 2.16.1, ONNX Runtime 1.17.0
 - **Optimización GPU**: Soporte completo para CUDA con configuración optimizada
 - **Procesamiento en lote**: Script optimizado para procesar múltiples videos
 - **Compatibilidad**: Python 3.10+ con todas las librerías actualizadas
@@ -25,8 +25,8 @@ Sistema de face swap optimizado para GPU con las versiones más recientes de tod
 git clone https://github.com/CDavidDv/roop
 cd roop
 
-# Instalación automática con versiones actualizadas
-python install_roop_colab.py
+# Instalación automática con versiones compatibles
+python install_quick.py
 ```
 
 ### Instalación Manual
@@ -56,7 +56,7 @@ python run_batch_processing.py \
 ### Procesamiento con GPU Optimizado
 
 ```bash
-python run_roop_gpu.py \
+python run.py \
   --source imagen.jpg \
   --target video.mp4 \
   -o resultado.mp4 \
@@ -94,7 +94,7 @@ export TF_CPP_MIN_LOG_LEVEL=2
 
 | Librería | Versión | Optimización |
 |----------|---------|--------------|
-| NumPy | 2.1.4 | Compatibilidad mejorada |
+| NumPy | 2.2.0 | Compatibilidad mejorada |
 | PyTorch | 2.2.0+cu121 | Soporte CUDA 12.1 |
 | TensorFlow | 2.16.1 | GPU optimizado |
 | ONNX Runtime | 1.17.0 | GPU acceleration |
@@ -135,10 +135,10 @@ print(f"Proveedores ONNX: {providers}")
 
 ## 📝 Notas Importantes
 
-1. **NumPy 2.x**: Compatible con todas las librerías actualizadas
+1. **NumPy 2.2.0**: Compatible con todas las librerías actualizadas
 2. **GPU Memory**: Configuración automática para evitar OOM
 3. **Batch Processing**: Optimizado para procesar múltiples videos
-4. **NSFW Skip**: Opción para saltar verificación NSFW en GPU
+4. **NSFW Skip**: Opción para saltar verificación en GPU
 
 ## 🐛 Solución de Problemas
 
@@ -156,9 +156,14 @@ print(f"Proveedores ONNX: {providers}")
 
 ### Error de NumPy
 ```bash
-# Reinstalar NumPy
-pip uninstall numpy -y
-pip install numpy==2.1.4
+# Usar script de instalación rápida
+python install_quick.py
+```
+
+### Error de CustomTkinter
+```bash
+# Instalar dependencias UI
+pip install customtkinter==5.2.2 darkdetect==0.8.0 tkinterdnd2==0.3.0 tk==0.1.0
 ```
 
 ## 📄 Licencia
