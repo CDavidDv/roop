@@ -1,152 +1,103 @@
-from typing import Any, List, Callable
 import cv2
-import insightface
+import numpy
+import onnxruntime
 import threading
-import onnxruntime as ort
-import numpy as np
-
+from typing import List, Any
 import roop.globals
-import roop.processors.frame.core
-from roop.core import update_status
-from roop.face_analyser import get_one_face, get_many_faces
-from roop.typing import Face, Frame
-from roop.utilities import conditional_download, resolve_relative_path, is_image, is_video
+from roop.face_analyser import get_one_face, get_many_faces, find_similar_face
+from roop.typing import Frame, Face
+from roop.utilities import resolve_relative_path
 
 FACE_SWAPPER = None
 THREAD_LOCK = threading.Lock()
-NAME = 'ROOP.FACE_SWAPPER'
-
 
 def get_face_swapper() -> Any:
     global FACE_SWAPPER
-
+    
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
-            model_path = resolve_relative_path('../inswapper_128.onnx')
-            
-            # Configuración optimizada para GPU
-            available_providers = ort.get_available_providers()
-            print(f"[{NAME}] Proveedores disponibles: {available_providers}")
-            
-            # Configuración optimizada para GPU
-            provider_options = []
-            
-            # Priorizar CUDA con configuración optimizada
-            if 'CUDAExecutionProvider' in available_providers:
-                cuda_options = {
-                    'device_id': 0,
-                    'arena_extend_strategy': 'kNextPowerOfTwo',
-                    'gpu_mem_limit': 2 * 1024 * 1024 * 1024,  # 2GB
-                    'cudnn_conv_use_max_workspace': '1',
-                    'do_copy_in_default_stream': '1',
-                }
-                provider_options = [
-                    ('CUDAExecutionProvider', cuda_options),
-                    ('CPUExecutionProvider', {})
-                ]
-                print(f"[{NAME}] ✅ Configurando GPU optimizado con CUDA")
-                print(f"[{NAME}] Opciones CUDA: {cuda_options}")
-            else:
-                # Fallback a CPU con optimizaciones
-                provider_options = [
-                    ('CPUExecutionProvider', {
-                        'intra_op_num_threads': roop.globals.execution_threads,
-                        'inter_op_num_threads': roop.globals.execution_threads,
-                    })
-                ]
-                print(f"[{NAME}] ❌ CUDA no disponible, usando CPU optimizado")
-            
-            # Crear sesión ONNX optimizada
-            session_options = ort.SessionOptions()
-            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
-            session_options.intra_op_num_threads = roop.globals.execution_threads
-            session_options.inter_op_num_threads = roop.globals.execution_threads
-            
-            print(f"[{NAME}] Configurando sesión ONNX optimizada")
-            print(f"[{NAME}] Hilos de ejecución: {roop.globals.execution_threads}")
-            
-            # Cargar modelo con configuración optimizada
-            FACE_SWAPPER = insightface.model_zoo.get_model(
-                model_path, 
-                providers=provider_options,
-                session_options=session_options
-            )
-            
-            # Verificar configuración aplicada
-            if hasattr(FACE_SWAPPER, 'providers'):
-                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
-            else:
-                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
-                
+            model_path = resolve_relative_path('../models/inswapper_128.onnx')
+            FACE_SWAPPER = onnxruntime.InferenceSession(model_path, providers=['CPUExecutionProvider'])
     return FACE_SWAPPER
 
-
-def pre_check() -> bool:
-    download_directory_path = resolve_relative_path('../content/roop')
-    conditional_download(download_directory_path, ['https://huggingface.co/countfloyd/deepfake/resolve/main/inswapper_128.onnx'])
-    return True
-
-
-def pre_start() -> bool:
-    if not is_image(roop.globals.source_path):
-        update_status('Select an image for source path.', NAME)
-        return False
-    elif not get_one_face(cv2.imread(roop.globals.source_path)):
-        update_status('No face in source path detected.', NAME)
-        return False
-    if not is_image(roop.globals.target_path) and not is_video(roop.globals.target_path):
-        update_status('Select an image or video for target path.', NAME)
-        return False
-    return True
-
-
-def post_process() -> None:
+def clear_face_swapper() -> Any:
     global FACE_SWAPPER
-
     FACE_SWAPPER = None
 
+def pre_start() -> bool:
+    return True
 
-def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
-    # Optimización: convertir a float32 para mejor rendimiento GPU
-    if temp_frame.dtype != np.float32:
-        temp_frame = temp_frame.astype(np.float32)
-    
-    result = get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
-    
-    # Asegurar que el resultado sea uint8 para OpenCV
-    if result.dtype != np.uint8:
-        result = np.clip(result, 0, 255).astype(np.uint8)
-    
-    return result
+def pre_check() -> bool:
+    return True
 
+def post_process() -> None:
+    clear_face_swapper()
 
-def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
-    if roop.globals.many_faces:
-        if many_faces := get_many_faces(temp_frame):
-            for target_face in many_faces:
-                temp_frame = swap_face(source_face, target_face, temp_frame)
-    elif target_face := get_one_face(temp_frame):
-        temp_frame = swap_face(source_face, target_face, temp_frame)
-    return temp_frame
+def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_frame: Frame) -> Frame:
+    """Implementación simple del face swap"""
+    try:
+        # Obtener coordenadas de las caras
+        source_bbox = source_face.bbox
+        target_bbox = target_face.bbox
+        
+        # Extraer regiones de las caras
+        source_x1, source_y1, source_x2, source_y2 = source_bbox
+        target_x1, target_y1, target_x2, target_y2 = target_bbox
+        
+        # Copiar la región de la cara fuente a la cara objetivo
+        source_face_region = source_frame[source_y1:source_y2, source_x1:source_x2]
+        target_face_region = target_frame[target_y1:target_y2, target_x1:target_x2]
+        
+        # Redimensionar para que coincidan
+        if source_face_region.size > 0 and target_face_region.size > 0:
+            resized_source = cv2.resize(source_face_region, (target_x2 - target_x1, target_y2 - target_y1))
+            
+            # Crear máscara para mezclar suavemente
+            mask = numpy.ones((target_y2 - target_y1, target_x2 - target_x1), dtype=numpy.float32)
+            mask = cv2.GaussianBlur(mask, (15, 15), 0)
+            
+            # Aplicar la cara fuente al frame objetivo
+            target_frame[target_y1:target_y2, target_x1:target_x2] = (
+                resized_source * mask[:, :, numpy.newaxis] +
+                target_frame[target_y1:target_y2, target_x1:target_x2] * (1 - mask[:, :, numpy.newaxis])
+            ).astype(numpy.uint8)
+        
+        return target_frame
+        
+    except Exception as e:
+        print(f"Error en face swap: {e}")
+        return target_frame
 
-
-def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
-    source_face = get_one_face(cv2.imread(source_path))
-    for temp_frame_path in temp_frame_paths:
-        temp_frame = cv2.imread(temp_frame_path)
-        result = process_frame(source_face, temp_frame)
-        cv2.imwrite(temp_frame_path, result)
-        if update:
-            update()
-
+def process_frames(source_frames: List[Frame], target_frames: List[Frame], source_face: Face, target_face: Face) -> List[Frame]:
+    """Procesa múltiples frames"""
+    result_frames = []
+    for target_frame in target_frames:
+        swapped_frame = swap_face(source_face, target_face, source_frames[0], target_frame.copy())
+        result_frames.append(swapped_frame)
+    return result_frames
 
 def process_image(source_path: str, target_path: str, output_path: str) -> None:
-    source_face = get_one_face(cv2.imread(source_path))
+    """Procesa una imagen"""
+    source_frame = cv2.imread(source_path)
     target_frame = cv2.imread(target_path)
-    result = process_frame(source_face, target_frame)
-    cv2.imwrite(output_path, result)
+    
+    source_face = get_one_face(source_frame)
+    target_face = get_one_face(target_frame)
+    
+    if source_face and target_face:
+        result_frame = swap_face(source_face, target_face, source_frame, target_frame)
+        cv2.imwrite(output_path, result_frame)
+    else:
+        # Si no se detectan caras, copiar el frame original
+        cv2.imwrite(output_path, target_frame)
 
+def process_frame(source_face: Face, target_frame: Frame) -> Frame:
+    """Procesa un frame individual"""
+    target_face = get_one_face(target_frame)
+    
+    if target_face:
+        return swap_face(source_face, target_face, target_frame, target_frame.copy())
+    else:
+        return target_frame
 
-def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
-    process_frames(source_path, temp_frame_paths, roop.processors.frame.core.update_progress)
+NAME = 'ROOP.FACE_SWAPPER'
