@@ -22,44 +22,9 @@ def get_face_swapper() -> Any:
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../models/inswapper_128.onnx')
-            
-            # Configuración simplificada para evitar errores de CUDA
-            print(f"[{NAME}] Configurando face swapper...")
-            
-            # Usar solo CPU por ahora para evitar errores de CUDA
-            provider_options = [
-                ('CPUExecutionProvider', {
-                    'intra_op_num_threads': 64,
-                    'inter_op_num_threads': 64,
-                })
-            ]
-            
-            print(f"[{NAME}] ✅ Usando CPU optimizado (64 hilos)")
-            
-            # Crear sesión ONNX optimizada
-            session_options = ort.SessionOptions()
-            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
-            session_options.intra_op_num_threads = 64
-            session_options.inter_op_num_threads = 64
-            
-            print(f"[{NAME}] Configurando sesión ONNX agresiva")
-            print(f"[{NAME}] Hilos de ejecución: 64")
-            
-            # Cargar modelo con configuración simplificada
-            try:
-                FACE_SWAPPER = insightface.model_zoo.get_model(
-                    model_path, 
-                    providers=provider_options,
-                    session_options=session_options
-                )
-                print(f"[{NAME}] ✅ Modelo cargado correctamente")
-            except Exception as e:
-                print(f"[{NAME}] ⚠️ Error cargando modelo: {e}")
-                # Fallback más simple
-                FACE_SWAPPER = insightface.model_zoo.get_model(model_path)
-                print(f"[{NAME}] ✅ Modelo cargado con configuración simple")
-                
+            # Configuración GPU: usar CUDA si está disponible, sino CPU
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if 'CUDAExecutionProvider' in roop.globals.execution_providers else roop.globals.execution_providers
+            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
     return FACE_SWAPPER
 
 
@@ -93,17 +58,7 @@ def post_process() -> None:
 
 
 def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
-    # Optimización: convertir a float32 para mejor rendimiento
-    if temp_frame.dtype != numpy.float32:
-        temp_frame = temp_frame.astype(numpy.float32)
-    
-    result = get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
-    
-    # Asegurar que el resultado sea uint8 para OpenCV
-    if result.dtype != numpy.uint8:
-        result = numpy.clip(result, 0, 255).astype(numpy.uint8)
-    
-    return result
+    return get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
 
 
 def process_frame(source_face: Face, reference_face: Face, temp_frame: Frame) -> Frame:
