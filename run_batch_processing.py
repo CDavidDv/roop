@@ -54,7 +54,7 @@ def process_single_video(source_path, video_path, output_dir, temp_quality=100, 
         "--execution-threads", "16",
         "--temp-frame-quality", str(temp_quality),
         "--max-memory", "4",
-        "--gpu-memory-wait", "60"
+        "--gpu-memory-wait", "15"
     ]
     
     if keep_fps:
