@@ -130,10 +130,14 @@ def get_frame_processors_modules(frame_processors: List[str]) -> List[ModuleType
 
 
 def multi_process_frame(source_path: str, temp_frame_paths: List[str], process_frames: Callable[[str, List[str], Any], None], update: Callable[[], None]) -> None:
-    with ThreadPoolExecutor(max_workers=roop.globals.execution_threads) as executor:
+    # Asegurar que execution_threads tenga un valor válido
+    max_workers = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
+    print(f"[THREADS] Usando {max_workers} hilos para procesamiento paralelo")
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         queue = create_queue(temp_frame_paths)
-        queue_per_future = max(len(temp_frame_paths) // roop.globals.execution_threads, 1)
+        queue_per_future = max(len(temp_frame_paths) // max_workers, 1)
         while not queue.empty():
             future = executor.submit(process_frames, source_path, pick_queue(queue, queue_per_future), update)
             futures.append(future)
@@ -187,12 +191,15 @@ def update_progress(progress: Any = None, processor_name: str = "unknown", frame
     else:
         progress_text = f"{frame_number}"
     
+    # Obtener el valor correcto de threads
+    threads_value = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
+    
     # Crear postfix más compacto
     postfix_parts = []
     postfix_parts.append(f"RAM:{memory_usage:.1f}GB")
     if gpu_info:
         postfix_parts.append(gpu_info)
-    postfix_parts.append(f"Threads:{roop.globals.execution_threads}")
+    postfix_parts.append(f"Threads:{threads_value}")
     
     progress.set_postfix({
         'processor': processor_name,

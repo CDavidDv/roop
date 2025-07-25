@@ -64,6 +64,9 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
     if keep_fps:
         cmd.append('--keep-fps')
     
+    # Debug: mostrar el comando completo
+    print(f"🔧 Comando ejecutado: {' '.join(cmd)}")
+    
     try:
         print("🔄 Iniciando procesamiento...")
         print(f"⚙️ Configuración: {execution_threads} hilos, {max_memory}GB RAM, {gpu_memory_wait}s GPU wait")
