@@ -78,14 +78,29 @@ def process_video_with_memory_management(source_path: str, frame_paths: list[str
     with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', 
               dynamic_ncols=True, bar_format=progress_bar_format, 
               leave=False, position=0) as progress:
-        # Crear una función de actualización que pase el número de frame
-        def update_with_frame(frame_index):
-            update_progress(progress, processor_name, frame_index + 1, total)
         
-        # Procesar frames con información detallada
-        for i, frame_path in enumerate(frame_paths):
-            # Procesar un solo frame para mostrar progreso detallado
-            process_frames(source_path, [frame_path], lambda: update_with_frame(i))
+        # Usar procesamiento paralelo real con ThreadPoolExecutor
+        max_workers = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
+        print(f"[{processor_name.upper()}] Usando {max_workers} hilos para procesamiento paralelo")
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            queue = create_queue(frame_paths)
+            queue_per_future = max(len(frame_paths) // max_workers, 1)
+            
+            # Crear función de actualización
+            def update_with_frame(frame_index):
+                update_progress(progress, processor_name, frame_index + 1, total)
+            
+            # Procesar frames en paralelo
+            while not queue.empty():
+                batch_frames = pick_queue(queue, queue_per_future)
+                future = executor.submit(process_frames, source_path, batch_frames, lambda: update_with_frame(len(futures)))
+                futures.append(future)
+            
+            # Esperar que terminen todos los futures
+            for future in as_completed(futures):
+                future.result()
     
     print(f"[{processor_name.upper()}] Procesamiento completado")
     
