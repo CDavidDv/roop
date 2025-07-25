@@ -1,15 +1,19 @@
 import cv2
 import numpy
-import onnxruntime
+import onnxruntime as ort
 import threading
 from typing import List, Any, Callable
 import roop.globals
+from roop.core import update_status
 from roop.face_analyser import get_one_face, get_many_faces, find_similar_face
+from roop.face_reference import get_face_reference, set_face_reference, clear_face_reference
 from roop.typing import Frame, Face
-from roop.utilities import resolve_relative_path
+from roop.utilities import resolve_relative_path, conditional_download, is_image, is_video
 
 FACE_SWAPPER = None
 THREAD_LOCK = threading.Lock()
+NAME = 'ROOP.FACE-SWAPPER'
+
 
 def get_face_swapper() -> Any:
     global FACE_SWAPPER
