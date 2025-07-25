@@ -14,7 +14,7 @@ from roop.utilities import conditional_download, resolve_relative_path, is_image
 
 FACE_SWAPPER = None
 THREAD_LOCK = threading.Lock()
-NAME = 'ROOP.FACE-SWAPPER'
+NAME = 'ROOP.FACE_SWAPPER'
 
 
 def get_face_swapper() -> Any:
