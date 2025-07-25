@@ -1,20 +1,20 @@
 --extra-index-url https://download.pytorch.org/whl/cu121
 
-# PyTorch stack - Versiones más recientes con CUDA 12.1
+# PyTorch stack - Versiones más recientes con soporte CUDA
 torch==2.2.0+cu121
 torchaudio==2.2.0+cu121
 torchtext==0.17.0
 torchvision==0.17.0+cu121
 triton==2.2.0
 
-# TensorFlow stack - Versiones más recientes
+# TensorFlow stack - Versión más reciente
 tensorflow==2.16.1
 tensorflow-estimator==2.16.1
-tensorboard==2.16.1
+tensorboard==2.16.2
 
-# Compatibles con Python 3.10+ y numpy>=1.26
-numpy==1.26.4
-typing-extensions==4.11.0
+# NumPy 2.x - Versión más reciente
+numpy==2.1.4
+typing-extensions==4.10.0
 
 # Vision / AI tools - Versiones actualizadas
 onnx==1.16.0
@@ -27,7 +27,7 @@ insightface==0.7.3
 filterpy==1.4.5
 opennsfw2==0.10.2
 
-# UI
+# UI - Versiones actualizadas
 customtkinter==5.2.2
 darkdetect==0.8.0
 tkinterdnd2==0.3.0
@@ -46,5 +46,5 @@ lmdb==1.5.1
 tqdm==4.66.1
 
 # Dependencias adicionales para optimización GPU
-nvidia-ml-py3==12.535.133
 psutil==5.9.8
+nvidia-cudnn-cu12==8.9.4.25

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script para procesar múltiples videos automáticamente con ROOP
-Optimizado para GPU y versiones recientes de librerías
+Optimizado para GPU y versiones actualizadas
 """
 
 import os
@@ -10,23 +10,19 @@ import argparse
 import subprocess
 import time
 import psutil
-import warnings
 from pathlib import Path
 
-# Configurar variables de entorno para GPU optimizado
+# Configurar variables de entorno para GPU ANTES de cualquier import
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Usar primera GPU
-os.environ['OMP_NUM_THREADS'] = '1'  # Optimizar para CUDA
-
-# Suprimir warnings de versiones nuevas
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', category=UserWarning)
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['MPLBACKEND'] = 'Agg'
+os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 
 # Desactivar predictor NSFW para evitar errores de GPU
 import roop.predictor
 def predict_video_skip_nsfw(target_path: str) -> bool:
-    print("⚠️ Saltando verificación NSFW para evitar conflictos de GPU...")
+    print("⚠️ Saltando verificación NSFW para optimizar rendimiento GPU...")
     return False
 
 roop.predictor.predict_video = predict_video_skip_nsfw
@@ -38,29 +34,22 @@ def check_gpu_availability() -> bool:
         if torch.cuda.is_available():
             gpu_count = torch.cuda.device_count()
             gpu_name = torch.cuda.get_device_name(0)
-            gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
-            print(f"✅ GPU detectada: {gpu_name} ({gpu_memory:.1f}GB)")
+            print(f"✅ GPU detectada: {gpu_name} (dispositivos: {gpu_count})")
             return True
         else:
-            print("❌ No se detectó GPU CUDA")
+            print("❌ CUDA no disponible")
             return False
-    except ImportError:
-        print("❌ PyTorch no disponible")
+    except Exception as e:
+        print(f"⚠️ Error verificando GPU: {e}")
         return False
 
-def check_system_resources() -> dict:
-    """Verificar recursos del sistema"""
-    cpu_count = psutil.cpu_count(logical=True)
-    memory_gb = psutil.virtual_memory().total / 1024**3
-    
-    print(f"💻 Recursos del sistema:")
-    print(f"   • CPU: {cpu_count} núcleos")
-    print(f"   • RAM: {memory_gb:.1f}GB")
-    
+def check_memory_usage() -> dict:
+    """Verificar uso de memoria del sistema"""
+    memory = psutil.virtual_memory()
     return {
-        'cpu_count': cpu_count,
-        'memory_gb': memory_gb,
-        'gpu_available': check_gpu_availability()
+        'total': memory.total // (1024**3),  # GB
+        'available': memory.available // (1024**3),  # GB
+        'percent': memory.percent
     }
 
 def check_file_exists(file_path: str, file_type: str) -> bool:
@@ -78,14 +67,26 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     output_name = f"{source_name}{target_base}.mp4"
     return output_name
 
-def optimize_threads_for_system(cpu_count: int, gpu_available: bool) -> int:
-    """Optimizar número de hilos según el sistema"""
+def optimize_system_for_processing():
+    """Optimizar sistema para procesamiento"""
+    print("🔧 Optimizando sistema para procesamiento...")
+    
+    # Verificar GPU
+    gpu_available = check_gpu_availability()
+    
+    # Verificar memoria
+    memory_info = check_memory_usage()
+    print(f"💾 Memoria del sistema: {memory_info['total']}GB total, {memory_info['available']}GB disponible ({memory_info['percent']}% usado)")
+    
+    # Configurar variables de entorno adicionales
     if gpu_available:
-        # Con GPU, usar menos hilos para evitar saturación
-        return min(16, cpu_count // 2)
+        os.environ['CUDA_LAUNCH_BLOCKING'] = '0'
+        os.environ['TORCH_CUDNN_V8_API_ENABLED'] = '1'
+        print("✅ Configuración GPU optimizada")
     else:
-        # Sin GPU, usar más hilos para CPU
-        return min(31, cpu_count - 1)
+        print("⚠️ Procesando solo con CPU")
+    
+    return gpu_available
 
 def process_single_video(source_path: str, target_path: str, output_path: str, 
                         gpu_memory_wait: int, max_memory: int, 
@@ -98,6 +99,11 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
     print(f"💾 Output: {os.path.basename(output_path)}")
     print("=" * 60)
     
+    # Verificar memoria antes de procesar
+    memory_info = check_memory_usage()
+    if memory_info['percent'] > 90:
+        print(f"⚠️ Advertencia: Memoria del sistema al {memory_info['percent']}%")
+    
     # Construir comando optimizado
     cmd = [
         sys.executable, 'run.py',
@@ -109,7 +115,7 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         '--max-memory', str(max_memory),
         '--execution-threads', str(execution_threads),
         '--temp-frame-quality', str(temp_frame_quality),
-        '--execution-provider', 'cuda'  # Forzar uso de CUDA
+        '--execution-provider', 'cuda', 'cpu'  # Priorizar GPU
     ]
     
     if keep_fps:
@@ -132,7 +138,7 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
             text=True,
             bufsize=1,
             universal_newlines=True,
-            env=dict(os.environ, CUDA_VISIBLE_DEVICES='0')  # Forzar GPU
+            env=dict(os.environ, PYTHONPATH=os.getcwd())
         )
         
         # Mostrar salida en tiempo real
@@ -145,7 +151,7 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
                 if any(keyword in line for keyword in [
                     'Progressing', 'Creating', 'Extracting', 'Restoring', 
                     'Cleaning', 'Processing', 'Creating video', 'Extracting frames',
-                    'Face-Swapper', 'Face-Enhancer', 'ROOP.CORE', 'CUDA', 'GPU'
+                    'Face-Swapper', 'Face-Enhancer', 'ROOP.CORE', 'GPU', 'CUDA'
                 ]):
                     print(f"  📈 {line}")
 
@@ -183,27 +189,18 @@ def process_video_batch(source_path: str, target_videos: list, output_dir: str,
     
     print("🚀 INICIANDO PROCESAMIENTO EN LOTE")
     print("=" * 60)
-    
-    # Verificar recursos del sistema
-    system_info = check_system_resources()
-    
-    # Optimizar configuración según el sistema
-    if execution_threads == 31:  # Valor por defecto
-        execution_threads = optimize_threads_for_system(
-            system_info['cpu_count'], 
-            system_info['gpu_available']
-        )
-        print(f"🔄 Hilos optimizados: {execution_threads}")
-    
     print(f"📸 Source: {source_path}")
     print(f"🎬 Videos a procesar: {len(target_videos)}")
-    print(f"⚙️ Configuración optimizada:")
+    print(f"⚙️ Configuración:")
     print(f"   • GPU Memory Wait: {gpu_memory_wait}s")
     print(f"   • Max Memory: {max_memory}GB")
     print(f"   • Execution Threads: {execution_threads}")
     print(f"   • Temp Frame Quality: {temp_frame_quality}")
     print(f"   • Keep FPS: {keep_fps}")
     print("=" * 60)
+    
+    # Optimizar sistema
+    gpu_available = optimize_system_for_processing()
     
     # Verificar que el source existe
     if not check_file_exists(source_path, "Source"):
@@ -279,7 +276,7 @@ def process_video_batch(source_path: str, target_videos: list, output_dir: str,
     print("=" * 60)
 
 def main():
-    parser = argparse.ArgumentParser(description='Procesar múltiples videos con ROOP optimizado para GPU')
+    parser = argparse.ArgumentParser(description='Procesar múltiples videos con ROOP')
     parser.add_argument('--source', required=True, help='Imagen fuente')
     parser.add_argument('--videos', nargs='+', required=True, help='Lista de videos a procesar')
     parser.add_argument('--output-dir', required=True, help='Directorio de salida')
@@ -288,7 +285,7 @@ def main():
     parser.add_argument('--max-memory', type=int, default=8, 
                        help='Memoria máxima en GB (default: 8)')
     parser.add_argument('--execution-threads', type=int, default=31, 
-                       help='Número de hilos (default: 31, se optimiza automáticamente)')
+                       help='Número de hilos (default: 31)')
     parser.add_argument('--temp-frame-quality', type=int, default=100, 
                        help='Calidad de frames temporales (default: 100)')
     parser.add_argument('--keep-fps', action='store_true', 
