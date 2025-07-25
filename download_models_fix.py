@@ -6,7 +6,7 @@ Script para descargar manualmente los modelos de InsightFace
 import os
 import subprocess
 import sys
-import requests
+import shutil
 
 def download_insightface_models():
     """Descarga los modelos de InsightFace manualmente"""
@@ -18,68 +18,59 @@ def download_insightface_models():
     os.makedirs(models_dir, exist_ok=True)
     print(f"✅ Directorio creado: {models_dir}")
     
-    # Lista de modelos con URLs alternativas
-    models = [
-        {
-            "name": "1k3d68.onnx",
-            "url": "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l/1k3d68.onnx"
-        },
-        {
-            "name": "2d106det.onnx",
-            "url": "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l/2d106det.onnx"
-        },
-        {
-            "name": "det_10g.onnx",
-            "url": "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l/det_10g.onnx"
-        },
-        {
-            "name": "genderage.onnx",
-            "url": "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l/genderage.onnx"
-        },
-        {
-            "name": "w600k_r50.onnx",
-            "url": "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l/w600k_r50.onnx"
-        }
+    # Clonar el repositorio si no existe
+    repo_dir = "/tmp/insightface_models"
+    if not os.path.exists(repo_dir):
+        print("🔄 Clonando repositorio de InsightFace...")
+        try:
+            subprocess.run([
+                "git", "clone", "https://github.com/deepinsight/insightface.git", repo_dir
+            ], check=True)
+            print("✅ Repositorio clonado")
+        except Exception as e:
+            print(f"❌ Error clonando repositorio: {e}")
+            return False
+    
+    # Buscar modelos en el repositorio
+    possible_paths = [
+        os.path.join(repo_dir, "python-package/insightface/model_zoo/models/buffalo_l"),
+        os.path.join(repo_dir, "model_zoo/models/buffalo_l"),
+        os.path.join(repo_dir, "models/buffalo_l"),
+        os.path.join(repo_dir, "python-package/insightface/model_zoo/models"),
+        os.path.join(repo_dir, "model_zoo/models")
     ]
     
-    for model in models:
-        model_path = os.path.join(models_dir, model["name"])
-        
-        # Verificar si el archivo existe y tiene tamaño correcto
-        if os.path.exists(model_path):
-            file_size = os.path.getsize(model_path)
-            if file_size > 1000000:  # Más de 1MB
-                print(f"✅ Ya existe: {model['name']} ({file_size/1024/1024:.1f}MB)")
-                continue
-            else:
-                print(f"⚠️ Archivo corrupto: {model['name']} ({file_size} bytes)")
-                os.remove(model_path)
-        
-        print(f"🔄 Descargando: {model['name']}")
-        
-        try:
-            # Usar requests para mejor control
-            response = requests.get(model["url"], stream=True, timeout=300)
-            response.raise_for_status()
+    models_found = False
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"✅ Encontrado directorio de modelos: {path}")
             
-            with open(model_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            # Listar archivos en el directorio
+            files = os.listdir(path)
+            print(f"📁 Archivos encontrados: {files}")
             
-            # Verificar tamaño del archivo descargado
-            file_size = os.path.getsize(model_path)
-            if file_size > 1000000:  # Más de 1MB
-                print(f"✅ Descargado: {model['name']} ({file_size/1024/1024:.1f}MB)")
-            else:
-                print(f"❌ Archivo muy pequeño: {model['name']} ({file_size} bytes)")
-                os.remove(model_path)
-                
-        except Exception as e:
-            print(f"❌ Error descargando {model['name']}: {e}")
-            if os.path.exists(model_path):
-                os.remove(model_path)
+            # Copiar archivos .onnx
+            onnx_files = [f for f in files if f.endswith('.onnx')]
+            if onnx_files:
+                print(f"🔄 Copiando {len(onnx_files)} modelos...")
+                for file in onnx_files:
+                    src = os.path.join(path, file)
+                    dst = os.path.join(models_dir, file)
+                    try:
+                        shutil.copy2(src, dst)
+                        size = os.path.getsize(dst) / 1024 / 1024
+                        print(f"✅ Copiado: {file} ({size:.1f}MB)")
+                    except Exception as e:
+                        print(f"❌ Error copiando {file}: {e}")
+                models_found = True
+                break
+    
+    if not models_found:
+        print("❌ No se encontraron modelos en el repositorio")
+        return False
     
     print("\n✅ Descarga de modelos completada")
+    return True
 
 def verify_models():
     """Verifica que los modelos estén correctos"""
@@ -165,50 +156,86 @@ except Exception as e:
         print(f"❌ Error en prueba: {e}")
         return False
 
-def force_download_models():
-    """Fuerza la descarga de modelos usando git lfs"""
-    print("\n🔄 DESCARGANDO MODELOS CON GIT LFS")
+def download_models_alternative():
+    """Método alternativo para descargar modelos"""
+    print("\n🔄 MÉTODO ALTERNATIVO - DESCARGANDO MODELOS")
     print("=" * 50)
     
-    try:
-        # Clonar el repositorio de modelos
-        models_repo = "/tmp/insightface_models"
-        if os.path.exists(models_repo):
-            subprocess.run(["rm", "-rf", models_repo], check=True)
+    # URLs alternativas desde releases de GitHub
+    models = [
+        {
+            "name": "1k3d68.onnx",
+            "url": "https://github.com/deepinsight/insightface/releases/download/v0.7.3/1k3d68.onnx"
+        },
+        {
+            "name": "2d106det.onnx",
+            "url": "https://github.com/deepinsight/insightface/releases/download/v0.7.3/2d106det.onnx"
+        },
+        {
+            "name": "det_10g.onnx",
+            "url": "https://github.com/deepinsight/insightface/releases/download/v0.7.3/det_10g.onnx"
+        },
+        {
+            "name": "genderage.onnx",
+            "url": "https://github.com/deepinsight/insightface/releases/download/v0.7.3/genderage.onnx"
+        },
+        {
+            "name": "w600k_r50.onnx",
+            "url": "https://github.com/deepinsight/insightface/releases/download/v0.7.3/w600k_r50.onnx"
+        }
+    ]
+    
+    models_dir = "/root/.insightface/models/buffalo_l"
+    os.makedirs(models_dir, exist_ok=True)
+    
+    for model in models:
+        model_path = os.path.join(models_dir, model["name"])
         
-        print("🔄 Clonando repositorio de modelos...")
-        subprocess.run([
-            "git", "clone", "https://github.com/deepinsight/insightface.git", models_repo
-        ], check=True)
+        if os.path.exists(model_path):
+            file_size = os.path.getsize(model_path)
+            if file_size > 1000000:
+                print(f"✅ Ya existe: {model['name']} ({file_size/1024/1024:.1f}MB)")
+                continue
         
-        # Copiar modelos
-        source_dir = os.path.join(models_repo, "python-package/insightface/model_zoo/models/buffalo_l")
-        target_dir = "/root/.insightface/models/buffalo_l"
-        
-        if os.path.exists(source_dir):
-            print("🔄 Copiando modelos...")
-            subprocess.run(["cp", "-r", f"{source_dir}/*", target_dir], check=True)
-            print("✅ Modelos copiados")
-        else:
-            print("❌ Directorio de modelos no encontrado")
+        print(f"🔄 Descargando: {model['name']}")
+        try:
+            result = subprocess.run([
+                "wget", "-O", model_path, model["url"]
+            ], capture_output=True, text=True, timeout=300)
             
-    except Exception as e:
-        print(f"❌ Error con git lfs: {e}")
+            if result.returncode == 0:
+                file_size = os.path.getsize(model_path)
+                if file_size > 1000000:
+                    print(f"✅ Descargado: {model['name']} ({file_size/1024/1024:.1f}MB)")
+                else:
+                    print(f"❌ Archivo muy pequeño: {model['name']} ({file_size} bytes)")
+                    os.remove(model_path)
+            else:
+                print(f"❌ Error descargando {model['name']}: {result.stderr}")
+                
+        except Exception as e:
+            print(f"❌ Error con {model['name']}: {e}")
+            if os.path.exists(model_path):
+                os.remove(model_path)
 
 def main():
     """Función principal"""
     print("🚀 DESCARGANDO MODELOS DE INSIGHTFACE")
     print("=" * 60)
     
-    # Intentar descarga normal
-    download_insightface_models()
+    # Intentar descarga desde repositorio
+    if download_insightface_models():
+        print("✅ Modelos descargados desde repositorio")
+    else:
+        print("⚠️ Falló descarga desde repositorio")
+        print("🔄 Intentando método alternativo...")
+        download_models_alternative()
     
     # Verificar modelos
     if not verify_models():
         print("\n⚠️ Algunos modelos están corruptos")
         print("🔄 Intentando descarga alternativa...")
-        force_download_models()
-        download_insightface_models()  # Intentar de nuevo
+        download_models_alternative()
     
     # Probar analizador
     if test_face_analyser():
@@ -221,7 +248,7 @@ def main():
     else:
         print("\n❌ Problemas con el analizador de rostros")
         print("🔄 Intentando descarga manual...")
-        force_download_models()
+        download_models_alternative()
         return False
 
 if __name__ == "__main__":
