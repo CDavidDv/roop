@@ -108,10 +108,10 @@ def limit_resources() -> None:
             # Configurar límite de memoria por GPU si se especifica
             if roop.globals.max_memory:
                 memory_limit = roop.globals.max_memory * 1024  # Convertir GB a MB
-    for gpu in gpus:
+                for gpu in gpus:
                     tf.config.experimental.set_virtual_device_configuration(gpu, [
                         tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)
-        ])
+                    ])
             
             print(f"[ROOP.CORE] ✅ GPU detectada: {len(gpus)} dispositivos")
             print(f"[ROOP.CORE] Configuración GPU: memory_growth=True, max_memory={roop.globals.max_memory}GB")
