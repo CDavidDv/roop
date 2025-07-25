@@ -8,11 +8,11 @@ torchvision==0.17.0+cu121
 triton==2.2.0
 
 # TensorFlow stack - Última versión estable
-tensorflow==2.16.1
-tensorflow-estimator==2.16.1
-tensorboard==2.16.2
+tensorflow==2.15.0
+tensorflow-estimator==2.15.0
+tensorboard==2.15.0
 
-# NumPy - Versión compatible con TensorFlow 2.16.1
+# NumPy - Versión compatible con TensorFlow 2.15.0
 numpy==1.26.4
 typing-extensions==4.10.0
 

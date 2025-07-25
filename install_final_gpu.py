@@ -60,12 +60,12 @@ def install_final_gpu():
         if not run_command(command, "Instalando PyTorch"):
             return False
     
-    # Paso 4: Instalar TensorFlow 2.16.1 (última versión)
-    print("🧠 Instalando TensorFlow 2.16.1...")
+    # Paso 4: Instalar TensorFlow 2.15.0 (última versión estable)
+    print("🧠 Instalando TensorFlow 2.15.0...")
     tf_commands = [
-        "pip install tensorflow==2.16.1",
-        "pip install tensorflow-estimator==2.16.1",
-        "pip install tensorboard==2.16.2",
+        "pip install tensorflow==2.15.0",
+        "pip install tensorflow-estimator==2.15.0",
+        "pip install tensorboard==2.15.0",
     ]
     
     for command in tf_commands:
@@ -210,7 +210,7 @@ def main():
     print("=" * 60)
     print("✅ NumPy 1.26.4 (compatible con TensorFlow)")
     print("✅ PyTorch 2.2.0+cu121")
-    print("✅ TensorFlow 2.16.1 (última versión)")
+    print("✅ TensorFlow 2.15.0 (última versión estable)")
     print("✅ ONNX Runtime GPU 1.17.0")
     print("✅ GPU configurada correctamente")
     print("✅ Modelo descargado")
