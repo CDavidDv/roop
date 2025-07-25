@@ -36,13 +36,27 @@ def post_process() -> None:
 def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_frame: Frame) -> Frame:
     """Implementación simple del face swap"""
     try:
+        # Verificar que las caras sean válidas
+        if source_face is None or target_face is None:
+            return target_frame
+        
         # Obtener coordenadas de las caras
         source_bbox = source_face.bbox
         target_bbox = target_face.bbox
         
+        # Verificar que las coordenadas sean válidas
+        if not source_bbox or not target_bbox:
+            return target_frame
+        
         # Extraer regiones de las caras
         source_x1, source_y1, source_x2, source_y2 = source_bbox
         target_x1, target_y1, target_x2, target_y2 = target_bbox
+        
+        # Verificar que las coordenadas estén dentro de los límites
+        h, w = target_frame.shape[:2]
+        if (target_x1 < 0 or target_y1 < 0 or target_x2 > w or target_y2 > h or
+            source_x1 < 0 or source_y1 < 0 or source_x2 > source_frame.shape[1] or source_y2 > source_frame.shape[0]):
+            return target_frame
         
         # Copiar la región de la cara fuente a la cara objetivo
         source_face_region = source_frame[source_y1:source_y2, source_x1:source_x2]
@@ -65,16 +79,20 @@ def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_
         return target_frame
         
     except Exception as e:
-        print(f"Error en face swap: {e}")
+        # Silenciar errores y retornar frame original
         return target_frame
 
 def process_frame(source_face: Face, target_frame: Frame) -> Frame:
     """Procesa un frame individual"""
-    target_face = get_one_face(target_frame)
-    
-    if target_face:
-        return swap_face(source_face, target_face, target_frame, target_frame.copy())
-    else:
+    try:
+        target_face = get_one_face(target_frame)
+        
+        if target_face and source_face:
+            return swap_face(source_face, target_face, target_frame, target_frame.copy())
+        else:
+            return target_frame
+    except Exception as e:
+        # Silenciar errores y retornar frame original
         return target_frame
 
 def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
