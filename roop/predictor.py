@@ -34,14 +34,14 @@ def clear_predictor() -> None:
 
 
 def predict_frame(target_frame: Frame) -> bool:
-        return False
+    return False
 
 
 def predict_image(target_path: str) -> bool:
     print("[PREDICTOR] Verificación NSFW desactivada para optimizar GPU")
-        return False
+    return False
 
 
 def predict_video(target_path: str) -> bool:
     print("[PREDICTOR] Verificación NSFW desactivada para optimizar GPU")
-        return False
+    return False 
