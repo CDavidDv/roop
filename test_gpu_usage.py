@@ -76,7 +76,7 @@ def check_python_packages():
             
         except ImportError:
             print(f"❌ {name}: No instalado")
-        except Exception as e:
+    except Exception as e:
             print(f"⚠️ {name}: Error - {e}")
     
     print()
@@ -134,7 +134,7 @@ def test_gpu_performance():
             
     except Exception as e:
         print(f"❌ Error en prueba de GPU: {e}")
-    
+
     print()
 
 def check_roop_installation():
@@ -187,7 +187,7 @@ def main():
     print("❌ Si hay errores, revisa la instalación de las dependencias")
     print("🔧 Para problemas de GPU, verifica los drivers de NVIDIA")
     print("📦 Para reinstalar: python install_roop_colab.py")
-    print("=" * 60)
+    print("=" * 60) 
 
 if __name__ == "__main__":
     main() 
