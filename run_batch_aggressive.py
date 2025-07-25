@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para procesamiento por lotes con GPU optimizado
-Usa la misma configuración que ya funciona
+Script para procesamiento agresivo con máximo uso de recursos
 """
 
 import os
@@ -9,11 +8,13 @@ import sys
 import subprocess
 import argparse
 import glob
+import multiprocessing
 from pathlib import Path
+import psutil
 
-def setup_environment():
-    """Configura las variables de entorno para máximo rendimiento"""
-    print("⚙️ CONFIGURANDO ENTORNO PARA MÁXIMO RENDIMIENTO")
+def setup_aggressive_environment():
+    """Configura el entorno para máximo rendimiento"""
+    print("🚀 CONFIGURANDO ENTORNO AGRESIVO")
     print("=" * 50)
     
     # Variables de entorno para máximo rendimiento
@@ -42,9 +43,23 @@ def setup_environment():
         os.environ[key] = value
         print(f"✅ {key} = {value}")
 
-def process_single_video(source_path, video_path, output_dir, temp_quality=100, keep_fps=True):
-    """Procesa un solo video"""
-    print(f"🔄 Procesando: {os.path.basename(video_path)}")
+def get_optimal_threads():
+    """Obtiene el número óptimo de hilos"""
+    cpu_count = multiprocessing.cpu_count()
+    memory_gb = psutil.virtual_memory().total / (1024**3)
+    
+    # Usar todos los cores disponibles
+    optimal_threads = min(cpu_count * 2, 128)  # Hasta 128 hilos
+    
+    print(f"🖥️ CPU cores: {cpu_count}")
+    print(f"💾 RAM total: {memory_gb:.1f}GB")
+    print(f"🧵 Hilos óptimos: {optimal_threads}")
+    
+    return optimal_threads
+
+def process_single_video_aggressive(source_path, video_path, output_dir, temp_quality=100, keep_fps=True):
+    """Procesa un video con configuración agresiva"""
+    print(f"🔥 PROCESANDO AGRESIVO: {os.path.basename(video_path)}")
     
     # Crear nombre de archivo de salida
     video_name = Path(video_path).stem
@@ -52,7 +67,10 @@ def process_single_video(source_path, video_path, output_dir, temp_quality=100, 
     output_filename = f"{source_name}_{video_name}.mp4"
     output_path = os.path.join(output_dir, output_filename)
     
-    # Comando con configuración agresiva para máximo rendimiento
+    # Obtener hilos óptimos
+    optimal_threads = get_optimal_threads()
+    
+    # Comando con configuración agresiva
     command = [
         sys.executable, "run.py",
         "--source", source_path,
@@ -60,21 +78,23 @@ def process_single_video(source_path, video_path, output_dir, temp_quality=100, 
         "-o", output_path,
         "--frame-processor", "face_swapper", "face_enhancer",
         "--execution-provider", "cuda",
-        "--execution-threads", "64",
+        "--execution-threads", str(optimal_threads),
         "--temp-frame-quality", str(temp_quality),
         "--max-memory", "12",
-        "--gpu-memory-wait", "5"
+        "--gpu-memory-wait", "2"
     ]
     
     if keep_fps:
         command.append("--keep-fps")
     
     try:
-        print(f"🚀 Iniciando procesamiento: {video_name}")
-        result = subprocess.run(command, timeout=3600)  # 1 hora timeout
+        print(f"🚀 Iniciando procesamiento agresivo: {video_name}")
+        print(f"⚡ Hilos: {optimal_threads} | 💾 RAM: 12GB | 🎮 GPU: 8GB")
+        
+        result = subprocess.run(command, timeout=1800)  # 30 minutos timeout
         
         if result.returncode == 0:
-            print(f"✅ Completado: {output_filename}")
+            print(f"✅ Completado agresivo: {output_filename}")
             return True
         else:
             print(f"❌ Error procesando: {video_name}")
@@ -87,9 +107,9 @@ def process_single_video(source_path, video_path, output_dir, temp_quality=100, 
         print(f"❌ Excepción en {video_name}: {e}")
         return False
 
-def process_batch(source_path, video_paths, output_dir, temp_quality=100, keep_fps=True):
-    """Procesa múltiples videos en lote"""
-    print("🚀 PROCESAMIENTO POR LOTES CON GPU")
+def process_batch_aggressive(source_path, video_paths, output_dir, temp_quality=100, keep_fps=True):
+    """Procesa múltiples videos con configuración agresiva"""
+    print("🚀 PROCESAMIENTO AGRESIVO CON MÁXIMO RENDIMIENTO")
     print("=" * 60)
     print(f"📸 Imagen fuente: {source_path}")
     print(f"🎬 Videos a procesar: {len(video_paths)}")
@@ -101,23 +121,23 @@ def process_batch(source_path, video_paths, output_dir, temp_quality=100, keep_f
     # Crear directorio de salida si no existe
     os.makedirs(output_dir, exist_ok=True)
     
-    # Configurar entorno
-    setup_environment()
+    # Configurar entorno agresivo
+    setup_aggressive_environment()
     
     # Procesar cada video
     successful = 0
     failed = 0
     
     for i, video_path in enumerate(video_paths, 1):
-        print(f"\n📹 [{i}/{len(video_paths)}] Procesando: {os.path.basename(video_path)}")
+        print(f"\n📹 [{i}/{len(video_paths)}] Procesando agresivo: {os.path.basename(video_path)}")
         
-        if process_single_video(source_path, video_path, output_dir, temp_quality, keep_fps):
+        if process_single_video_aggressive(source_path, video_path, output_dir, temp_quality, keep_fps):
             successful += 1
         else:
             failed += 1
     
     # Resumen final
-    print("\n🎉 RESUMEN DEL PROCESAMIENTO")
+    print("\n🎉 RESUMEN DEL PROCESAMIENTO AGRESIVO")
     print("=" * 50)
     print(f"✅ Exitosos: {successful}")
     print(f"❌ Fallidos: {failed}")
@@ -140,7 +160,7 @@ def process_batch(source_path, video_paths, output_dir, temp_quality=100, keep_f
 
 def main():
     """Función principal"""
-    parser = argparse.ArgumentParser(description="Procesamiento por lotes con ROOP GPU")
+    parser = argparse.ArgumentParser(description="Procesamiento agresivo con ROOP GPU")
     parser.add_argument("--source", required=True, help="Ruta de la imagen fuente")
     parser.add_argument("--videos", nargs="+", required=True, help="Rutas de los videos a procesar")
     parser.add_argument("--output-dir", default="/content/resultados", help="Directorio de salida")
@@ -149,30 +169,13 @@ def main():
     
     args = parser.parse_args()
     
-    # Verificar que los archivos existan
-    if not os.path.exists(args.source):
-        print(f"❌ Error: Imagen fuente no encontrada: {args.source}")
-        return 1
-    
-    missing_videos = []
-    for video in args.videos:
-        if not os.path.exists(video):
-            missing_videos.append(video)
-    
-    if missing_videos:
-        print(f"❌ Error: Videos no encontrados: {missing_videos}")
-        return 1
-    
-    # Procesar lote
-    successful, failed = process_batch(
+    return process_batch_aggressive(
         args.source, 
         args.videos, 
         args.output_dir, 
         args.temp_frame_quality, 
         args.keep_fps
     )
-    
-    return 0 if failed == 0 else 1
 
 if __name__ == "__main__":
     sys.exit(main()) 

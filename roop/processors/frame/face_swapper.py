@@ -17,117 +17,146 @@ def get_face_swapper() -> Any:
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../models/inswapper_128.onnx')
-            FACE_SWAPPER = onnxruntime.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+            
+            # Configuración agresiva para GPU
+            available_providers = ort.get_available_providers()
+            print(f"[{NAME}] Proveedores disponibles: {available_providers}")
+            
+            # Configuración optimizada para GPU
+            provider_options = []
+            
+            # Priorizar CUDA con configuración agresiva
+            if 'CUDAExecutionProvider' in available_providers:
+                cuda_options = {
+                    'device_id': 0,
+                    'arena_extend_strategy': 'kNextPowerOfTwo',
+                    'gpu_mem_limit': 8 * 1024 * 1024 * 1024,  # 8GB
+                    'cudnn_conv_use_max_workspace': '1',
+                    'do_copy_in_default_stream': '1',
+                }
+                provider_options = [
+                    ('CUDAExecutionProvider', cuda_options),
+                    ('CPUExecutionProvider', {
+                        'intra_op_num_threads': 64,
+                        'inter_op_num_threads': 64,
+                    })
+                ]
+                print(f"[{NAME}] ✅ Configurando GPU agresivo con CUDA")
+                print(f"[{NAME}] Opciones CUDA: {cuda_options}")
+            else:
+                # Fallback a CPU con optimizaciones
+                provider_options = [
+                    ('CPUExecutionProvider', {
+                        'intra_op_num_threads': 64,
+                        'inter_op_num_threads': 64,
+                    })
+                ]
+                print(f"[{NAME}] ❌ CUDA no disponible, usando CPU optimizado")
+            
+            # Crear sesión ONNX optimizada
+            session_options = ort.SessionOptions()
+            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
+            session_options.intra_op_num_threads = 64
+            session_options.inter_op_num_threads = 64
+            
+            print(f"[{NAME}] Configurando sesión ONNX agresiva")
+            print(f"[{NAME}] Hilos de ejecución: 64")
+            
+            # Cargar modelo con configuración agresiva
+            FACE_SWAPPER = insightface.model_zoo.get_model(
+                model_path, 
+                providers=provider_options,
+                session_options=session_options
+            )
+            
+            # Verificar configuración aplicada
+            if hasattr(FACE_SWAPPER, 'providers'):
+                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
+            else:
+                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
+                
     return FACE_SWAPPER
 
-def clear_face_swapper() -> Any:
+
+def clear_face_swapper() -> None:
     global FACE_SWAPPER
     FACE_SWAPPER = None
 
-def pre_start() -> bool:
-    return True
 
 def pre_check() -> bool:
+    download_directory_path = resolve_relative_path('../models')
+    conditional_download(download_directory_path, ['https://huggingface.co/CountFloyd/deepfake/resolve/main/inswapper_128.onnx'])
     return True
+
+
+def pre_start() -> bool:
+    if not is_image(roop.globals.source_path):
+        update_status('Select an image for source path.', NAME)
+        return False
+    elif not get_one_face(cv2.imread(roop.globals.source_path)):
+        update_status('No face in source path detected.', NAME)
+        return False
+    if not is_image(roop.globals.target_path) and not is_video(roop.globals.target_path):
+        update_status('Select an image or video for target path.', NAME)
+        return False
+    return True
+
 
 def post_process() -> None:
     clear_face_swapper()
+    clear_face_reference()
 
-def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_frame: Frame) -> Frame:
-    """Implementación mejorada del face swap"""
-    try:
-        # Verificar que las caras sean válidas
-        if source_face is None or target_face is None:
-            return target_frame
-        
-        # Obtener coordenadas de las caras
-        source_bbox = source_face.bbox
-        target_bbox = target_face.bbox
-        
-        # Verificar que las coordenadas sean válidas
-        if not source_bbox or not target_bbox:
-            return target_frame
-        
-        # Extraer regiones de las caras
-        source_x1, source_y1, source_x2, source_y2 = source_bbox
-        target_x1, target_y1, target_x2, target_y2 = target_bbox
-        
-        # Verificar que las coordenadas estén dentro de los límites
-        h, w = target_frame.shape[:2]
-        if (target_x1 < 0 or target_y1 < 0 or target_x2 > w or target_y2 > h or
-            source_x1 < 0 or source_y1 < 0 or source_x2 > source_frame.shape[1] or source_y2 > source_frame.shape[0]):
-            return target_frame
-        
-        # Copiar la región de la cara fuente a la cara objetivo
-        source_face_region = source_frame[source_y1:source_y2, source_x1:source_x2]
-        target_face_region = target_frame[target_y1:target_y2, target_x1:target_x2]
-        
-        # Redimensionar para que coincidan
-        if source_face_region.size > 0 and target_face_region.size > 0:
-            resized_source = cv2.resize(source_face_region, (target_x2 - target_x1, target_y2 - target_y1))
-            
-            # Crear máscara para mezclar suavemente
-            mask = numpy.ones((target_y2 - target_y1, target_x2 - target_x1), dtype=numpy.float32)
-            mask = cv2.GaussianBlur(mask, (25, 25), 0)
-            
-            # Aplicar la cara fuente al frame objetivo con mezcla más agresiva
-            target_region = target_frame[target_y1:target_y2, target_x1:target_x2]
-            blended_region = (
-                resized_source * mask[:, :, numpy.newaxis] * 0.8 +
-                target_region * (1 - mask[:, :, numpy.newaxis]) * 0.2
-            ).astype(numpy.uint8)
-            
-            target_frame[target_y1:target_y2, target_x1:target_x2] = blended_region
-        
-        return target_frame
-        
-    except Exception as e:
-        # Silenciar errores y retornar frame original
-        return target_frame
 
-def process_frame(source_face: Face, target_frame: Frame) -> Frame:
-    """Procesa un frame individual"""
-    try:
-        target_face = get_one_face(target_frame)
-        
-        if target_face and source_face:
-            # Hacer el face swap más agresivo
-            result = swap_face(source_face, target_face, target_frame, target_frame.copy())
-            return result
-        else:
-            return target_frame
-    except Exception as e:
-        # Silenciar errores y retornar frame original
-        return target_frame
+def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
+    # Optimización: convertir a float32 para mejor rendimiento GPU
+    if temp_frame.dtype != numpy.float32:
+        temp_frame = temp_frame.astype(numpy.float32)
+    
+    result = get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
+    
+    # Asegurar que el resultado sea uint8 para OpenCV
+    if result.dtype != numpy.uint8:
+        result = numpy.clip(result, 0, 255).astype(numpy.uint8)
+    
+    return result
+
+
+def process_frame(source_face: Face, reference_face: Face, temp_frame: Frame) -> Frame:
+    if roop.globals.many_faces:
+        many_faces = get_many_faces(temp_frame)
+        if many_faces:
+            for target_face in many_faces:
+                temp_frame = swap_face(source_face, target_face, temp_frame)
+    else:
+        target_face = find_similar_face(temp_frame, reference_face)
+        if target_face:
+            temp_frame = swap_face(source_face, target_face, temp_frame)
+    return temp_frame
+
 
 def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
-    """Procesa múltiples frames - interfaz requerida por ROOP"""
     source_face = get_one_face(cv2.imread(source_path))
-    
+    reference_face = None if roop.globals.many_faces else get_face_reference()
     for temp_frame_path in temp_frame_paths:
         temp_frame = cv2.imread(temp_frame_path)
-        result = process_frame(source_face, temp_frame)
+        result = process_frame(source_face, reference_face, temp_frame)
         cv2.imwrite(temp_frame_path, result)
         if update:
             update()
 
+
 def process_image(source_path: str, target_path: str, output_path: str) -> None:
-    """Procesa una imagen"""
-    source_frame = cv2.imread(source_path)
+    source_face = get_one_face(cv2.imread(source_path))
     target_frame = cv2.imread(target_path)
-    
-    source_face = get_one_face(source_frame)
-    target_face = get_one_face(target_frame)
-    
-    if source_face and target_face:
-        result_frame = swap_face(source_face, target_face, source_frame, target_frame)
-        cv2.imwrite(output_path, result_frame)
-    else:
-        # Si no se detectan caras, copiar el frame original
-        cv2.imwrite(output_path, target_frame)
+    reference_face = None if roop.globals.many_faces else get_one_face(target_frame, roop.globals.reference_face_position)
+    result = process_frame(source_face, reference_face, target_frame)
+    cv2.imwrite(output_path, result)
+
 
 def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
-    """Procesa un video - interfaz requerida por ROOP"""
-    process_frames(source_path, temp_frame_paths, None)
-
-NAME = 'ROOP.FACE_SWAPPER'
+    if not roop.globals.many_faces and not get_face_reference():
+        reference_frame = cv2.imread(temp_frame_paths[roop.globals.reference_frame_number])
+        reference_face = get_one_face(reference_frame, roop.globals.reference_face_position)
+        set_face_reference(reference_face)
+    roop.processors.frame.core.process_video(source_path, temp_frame_paths, process_frames)
