@@ -126,7 +126,7 @@ def main():
     test_face_analyser_gpu()
     
     print("\n🎉 PRUEBAS COMPLETADAS")
-    print("=" * 50)
+    print("=" * 50) 
 
 if __name__ == "__main__":
     main() 

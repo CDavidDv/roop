@@ -100,10 +100,19 @@ def load_frame_processor_module(frame_processor: str) -> Any:
         for method_name in FRAME_PROCESSORS_INTERFACE:
             if not hasattr(frame_processor_module, method_name):
                 raise NotImplementedError
-    except ModuleNotFoundError:
-        sys.exit(f'Frame processor {frame_processor} not found.')
+    except ModuleNotFoundError as e:
+        print(f'Frame processor {frame_processor} not found.')
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
     except NotImplementedError:
-        sys.exit(f'Frame processor {frame_processor} not implemented correctly.')
+        print(f'Frame processor {frame_processor} not implemented correctly.')
+        sys.exit(1)
+    except Exception as e:
+        print(f'Error importando frame processor {frame_processor}: {e}')
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
     return frame_processor_module
 
 

@@ -100,7 +100,7 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         if return_code == 0:
             print("-" * 40)
             print(f"✅ Video procesado exitosamente: {os.path.basename(output_path)}")
-            return True
+        return True
         else:
             print(f"❌ Error en el procesamiento (código: {return_code})")
             print("---- SALIDA COMPLETA DEL PROCESO ----")
