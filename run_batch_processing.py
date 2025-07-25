@@ -16,7 +16,7 @@ def setup_environment():
     print("⚙️ CONFIGURANDO ENTORNO OPTIMIZADO")
     print("=" * 50)
     
-    # Variables de entorno que ya funcionan
+    # Variables de entorno optimizadas para más GPU y RAM
     env_vars = {
         'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
         'TF_CPP_MIN_LOG_LEVEL': '2',
@@ -24,9 +24,11 @@ def setup_environment():
         'MPLBACKEND': 'Agg',
         'NO_ALBUMENTATIONS_UPDATE': '1',
         'ONNXRUNTIME_PROVIDER': 'CUDAExecutionProvider,CPUExecutionProvider',
-        'TF_MEMORY_ALLOCATION': '0.8',
-        'ONNXRUNTIME_GPU_MEMORY_LIMIT': '2147483648',
-        'LD_LIBRARY_PATH': '/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/lib64:' + os.environ.get('LD_LIBRARY_PATH', '')
+        'TF_MEMORY_ALLOCATION': '0.9',
+        'ONNXRUNTIME_GPU_MEMORY_LIMIT': '4294967296',
+        'LD_LIBRARY_PATH': '/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/lib64:' + os.environ.get('LD_LIBRARY_PATH', ''),
+        'CUDA_MEMORY_FRACTION': '0.9',
+        'TF_GPU_MEMORY_FRACTION': '0.9'
     }
     
     for key, value in env_vars.items():
@@ -51,9 +53,9 @@ def process_single_video(source_path, video_path, output_dir, temp_quality=100, 
         "-o", output_path,
         "--frame-processor", "face_swapper", "face_enhancer",
         "--execution-provider", "cuda",
-        "--execution-threads", "16",
+        "--execution-threads", "32",
         "--temp-frame-quality", str(temp_quality),
-        "--max-memory", "4",
+        "--max-memory", "8",
         "--gpu-memory-wait", "15"
     ]
     

@@ -96,6 +96,7 @@ def suggest_execution_threads() -> int:
 def limit_resources() -> None:
     # Configuración optimizada para GPU y memoria
     import tensorflow as tf
+    import platform
     
     # Configurar TensorFlow para GPU
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -125,6 +126,8 @@ def limit_resources() -> None:
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Usar primera GPU
+    os.environ['TF_GPU_MEMORY_FRACTION'] = '0.9'  # Usar 90% de GPU
+    os.environ['CUDA_MEMORY_FRACTION'] = '0.9'  # Usar 90% de GPU
     
     # Configurar límites de memoria del sistema
     if roop.globals.max_memory:
