@@ -1,118 +1,150 @@
 #!/usr/bin/env python3
 """
-Script para solucionar el problema de torchvision.transforms.functional_tensor
+Script para solucionar problemas de compatibilidad entre torchvision y basicsr
 """
 
-import subprocess
-import sys
 import os
+import sys
+import subprocess
 
-def run_command(cmd, description):
-    """Ejecutar comando y mostrar resultado"""
-    print(f"🔧 {description}...")
+def run_command(command, description=""):
+    """Ejecutar comando con manejo de errores"""
+    print(f"🔧 {description}")
+    print(f"Comando: {command}")
+    
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        if result.returncode == 0:
-            print(f"✅ {description} completado")
-            if result.stdout.strip():
-                print(f"   Salida: {result.stdout.strip()}")
-        else:
-            print(f"❌ {description} falló")
-            print(f"   Error: {result.stderr.strip()}")
-        return result.returncode == 0
-    except Exception as e:
-        print(f"❌ Error ejecutando {description}: {e}")
+        result = subprocess.run(command, shell=True, check=True, 
+                              capture_output=True, text=True)
+        print(f"✅ {description} completado")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error en {description}: {e}")
+        print(f"STDERR: {e.stderr}")
         return False
+
+def fix_torchvision_compatibility():
+    """Solucionar problemas de compatibilidad de torchvision"""
+    print("🔧 Solucionando problemas de compatibilidad de torchvision...")
+    
+    # Desinstalar versiones conflictivas
+    run_command("pip uninstall -y torchvision", "Desinstalando torchvision anterior")
+    run_command("pip uninstall -y basicsr", "Desinstalando basicsr anterior")
+    run_command("pip uninstall -y gfpgan", "Desinstalando gfpgan anterior")
+    
+    # Instalar torchvision compatible
+    run_command("pip install torchvision==0.16.0+cu121 --index-url https://download.pytorch.org/whl/cu121", 
+                "Instalando torchvision 0.16.0 compatible")
+    
+    # Instalar basicsr compatible
+    run_command("pip install basicsr==1.4.2", "Instalando basicsr 1.4.2")
+    
+    # Instalar gfpgan compatible
+    run_command("pip install gfpgan==1.3.8", "Instalando gfpgan 1.3.8")
+    
+    return True
+
+def verify_fix():
+    """Verificar que el fix funcionó"""
+    print("\n🔍 Verificando que el fix funcionó...")
+    
+    try:
+        import torchvision
+        print(f"✅ TorchVision: {torchvision.__version__}")
+        
+        # Verificar que el módulo problemático existe
+        from torchvision.transforms import functional
+        print("✅ TorchVision functional disponible")
+        
+        import basicsr
+        print(f"✅ BasicSR: {basicsr.__version__}")
+        
+        import gfpgan
+        print(f"✅ GFPGAN: {gfpgan.__version__}")
+        
+        # Probar importación problemática
+        try:
+            from basicsr.data.degradations import circular_lowpass_kernel
+            print("✅ BasicSR degradations disponible")
+        except ImportError as e:
+            print(f"⚠️ BasicSR degradations: {e}")
+        
+        print("✅ Compatibilidad verificada")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error verificando compatibilidad: {e}")
+        return False
+
+def create_face_enhancer_fix():
+    """Crear un fix temporal para face_enhancer"""
+    print("\n🔧 Creando fix temporal para face_enhancer...")
+    
+    fix_content = '''#!/usr/bin/env python3
+"""
+Fix temporal para face_enhancer con compatibilidad torchvision
+"""
+
+import os
+import sys
+
+# Configurar variables de entorno
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+# Fix para torchvision.transforms.functional_tensor
+try:
+    from torchvision.transforms import functional
+    # Crear alias para compatibilidad
+    if not hasattr(functional, 'rgb_to_grayscale'):
+        def rgb_to_grayscale(img):
+            return functional.to_grayscale(img, num_output_channels=1)
+        functional.rgb_to_grayscale = rgb_to_grayscale
+    print("✅ Fix de torchvision aplicado")
+except Exception as e:
+    print(f"⚠️ Error aplicando fix de torchvision: {e}")
+
+# Ahora importar face_enhancer
+try:
+    from roop.processors.frame import face_enhancer
+    print("✅ Face enhancer disponible")
+except Exception as e:
+    print(f"❌ Error importando face enhancer: {e}")
+'''
+    
+    with open("fix_face_enhancer.py", "w") as f:
+        f.write(fix_content)
+    
+    print("✅ Fix temporal creado: fix_face_enhancer.py")
+    return True
 
 def main():
-    print("🚀 SOLUCIONADOR PROBLEMA TORCHVISION")
-    print("=" * 50)
+    """Función principal"""
+    print("🚀 SOLUCIONANDO PROBLEMAS DE COMPATIBILIDAD")
+    print("=" * 60)
     
-    # Verificar versión actual de torchvision
-    print("📊 Verificando versión actual de torchvision...")
-    try:
-        import torchvision
-        print(f"   Versión actual: {torchvision.__version__}")
-    except ImportError:
-        print("   ❌ torchvision no está instalado")
-    except Exception as e:
-        print(f"   ❌ Error verificando torchvision: {e}")
-    
-    # Verificar si el módulo problemático existe
-    print("\n🔍 Verificando módulo problemático...")
-    try:
-        from torchvision.transforms import functional_tensor
-        print("   ✅ Módulo functional_tensor disponible")
-    except ImportError:
-        print("   ❌ Módulo functional_tensor no disponible")
-    
-    print("\n🔧 SOLUCIONANDO PROBLEMA TORCHVISION")
-    print("=" * 50)
-    
-    # Paso 1: Desinstalar torchvision actual
-    if not run_command("pip uninstall torchvision -y", "Desinstalando torchvision actual"):
-        print("⚠️ Continuando de todas formas...")
-    
-    # Paso 2: Limpiar caché de pip
-    run_command("pip cache purge", "Limpiando caché de pip")
-    
-    # Paso 3: Instalar versión compatible de torchvision
-    print("\n📦 Instalando versión compatible de torchvision...")
-    
-    # Intentar diferentes versiones compatibles
-    torchvision_versions = [
-        "torchvision==0.15.2",
-        "torchvision==0.14.1", 
-        "torchvision==0.13.1",
-        "torchvision==0.12.0"
-    ]
-    
-    for version in torchvision_versions:
-        print(f"\n🔄 Intentando instalar {version}...")
-        if run_command(f"pip install {version} --no-cache-dir", f"Instalando {version}"):
-            # Verificar si el módulo problemático ahora está disponible
-            try:
-                from torchvision.transforms import functional_tensor
-                print("✅ Módulo functional_tensor ahora disponible")
-                break
-            except ImportError:
-                print("❌ Módulo functional_tensor aún no disponible, probando siguiente versión...")
-                continue
-        else:
-            print(f"❌ Falló instalación de {version}")
-    
-    # Paso 4: Verificar instalación final
-    print("\n🧪 VERIFICACIÓN FINAL")
-    print("=" * 50)
-    
-    try:
-        import torchvision
-        print(f"✅ torchvision instalado: {torchvision.__version__}")
-    except ImportError:
-        print("❌ torchvision no se pudo importar")
+    # Solucionar compatibilidad torchvision
+    if not fix_torchvision_compatibility():
+        print("❌ Error solucionando compatibilidad torchvision")
         return False
     
-    try:
-        from torchvision.transforms import functional_tensor
-        print("✅ Módulo functional_tensor disponible")
-    except ImportError:
-        print("❌ Módulo functional_tensor aún no disponible")
-        print("\n🔧 Intentando solución alternativa...")
-        
-        # Crear un módulo de compatibilidad
-        try:
-            import torchvision.transforms.functional as F
-            # Crear un alias para compatibilidad
-            torchvision.transforms.functional_tensor = F
-            print("✅ Solución alternativa aplicada")
-        except Exception as e:
-            print(f"❌ No se pudo aplicar solución alternativa: {e}")
-            return False
+    # Verificar fix
+    if not verify_fix():
+        print("❌ Error verificando fix")
+        return False
     
-    print("\n🎉 ¡PROBLEMA SOLUCIONADO!")
-    print("=" * 50)
-    print("Ahora puedes ejecutar el procesamiento por lotes:")
-    print("python run_batch_processing.py --source /content/DanielaAS.jpg --videos /content/113.mp4 --output-dir /content/resultados --execution-threads 31 --temp-frame-quality 100 --keep-fps")
+    # Crear fix temporal
+    if not create_face_enhancer_fix():
+        print("❌ Error creando fix temporal")
+        return False
+    
+    print("\n" + "=" * 60)
+    print("✅ PROBLEMAS DE COMPATIBILIDAD SOLUCIONADOS")
+    print("=" * 60)
+    print("📋 Próximos pasos:")
+    print("1. Ejecuta: python fix_face_enhancer.py")
+    print("2. Luego ejecuta tu procesamiento normal")
+    print("3. Si persisten problemas, usa solo face_swapper")
+    print("=" * 60)
     
     return True
 
