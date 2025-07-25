@@ -2,7 +2,7 @@ import cv2
 import numpy
 import onnxruntime
 import threading
-from typing import List, Any
+from typing import List, Any, Callable
 import roop.globals
 from roop.face_analyser import get_one_face, get_many_faces, find_similar_face
 from roop.typing import Frame, Face
@@ -68,13 +68,25 @@ def swap_face(source_face: Face, target_face: Face, source_frame: Frame, target_
         print(f"Error en face swap: {e}")
         return target_frame
 
-def process_frames(source_frames: List[Frame], target_frames: List[Frame], source_face: Face, target_face: Face) -> List[Frame]:
-    """Procesa múltiples frames"""
-    result_frames = []
-    for target_frame in target_frames:
-        swapped_frame = swap_face(source_face, target_face, source_frames[0], target_frame.copy())
-        result_frames.append(swapped_frame)
-    return result_frames
+def process_frame(source_face: Face, target_frame: Frame) -> Frame:
+    """Procesa un frame individual"""
+    target_face = get_one_face(target_frame)
+    
+    if target_face:
+        return swap_face(source_face, target_face, target_frame, target_frame.copy())
+    else:
+        return target_frame
+
+def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
+    """Procesa múltiples frames - interfaz requerida por ROOP"""
+    source_face = get_one_face(cv2.imread(source_path))
+    
+    for temp_frame_path in temp_frame_paths:
+        temp_frame = cv2.imread(temp_frame_path)
+        result = process_frame(source_face, temp_frame)
+        cv2.imwrite(temp_frame_path, result)
+        if update:
+            update()
 
 def process_image(source_path: str, target_path: str, output_path: str) -> None:
     """Procesa una imagen"""
@@ -91,13 +103,8 @@ def process_image(source_path: str, target_path: str, output_path: str) -> None:
         # Si no se detectan caras, copiar el frame original
         cv2.imwrite(output_path, target_frame)
 
-def process_frame(source_face: Face, target_frame: Frame) -> Frame:
-    """Procesa un frame individual"""
-    target_face = get_one_face(target_frame)
-    
-    if target_face:
-        return swap_face(source_face, target_face, target_frame, target_frame.copy())
-    else:
-        return target_frame
+def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
+    """Procesa un video - interfaz requerida por ROOP"""
+    process_frames(source_path, temp_frame_paths, None)
 
 NAME = 'ROOP.FACE_SWAPPER'
