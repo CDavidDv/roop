@@ -7,13 +7,13 @@ torchtext==0.17.0
 torchvision==0.17.0+cu121
 triton==2.2.0
 
-# TensorFlow stack - Versión más reciente
-tensorflow==2.15.0
-tensorflow-estimator==2.15.0
-tensorboard==2.15.0
+# TensorFlow stack - Última versión estable
+tensorflow==2.16.1
+tensorflow-estimator==2.16.1
+tensorboard==2.16.2
 
-# NumPy - Versión compatible con Python 3.10+
-numpy==2.2.0
+# NumPy - Versión compatible con TensorFlow 2.16.1
+numpy==1.26.4
 typing-extensions==4.10.0
 
 # Vision / AI tools - Versiones actualizadas
@@ -47,4 +47,4 @@ tqdm==4.66.1
 
 # Dependencias adicionales para optimización GPU
 psutil==5.9.8
-nvidia-cudnn-cu12==8.9.4.25
+nvidia-cudnn-cu12==8.9.2.26
