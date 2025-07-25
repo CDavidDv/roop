@@ -38,9 +38,9 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     return output_name
 
 def process_single_video(source_path: str, target_path: str, output_path: str, 
-                        gpu_memory_wait: int = 30, max_memory: int = 12, 
-                        execution_threads: int = 31, temp_frame_quality: int = 100,
-                        keep_fps: bool = True) -> bool:
+                        gpu_memory_wait: int, max_memory: int, 
+                        execution_threads: int, temp_frame_quality: int,
+                        keep_fps: bool) -> bool:
     """Procesar un solo video con progreso detallado"""
     
     print(f"\n🎬 PROCESANDO VIDEO: {os.path.basename(target_path)}")
@@ -120,10 +120,10 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         print(f"❌ Error inesperado: {e}")
         return False
 
-def process_video_batch(source_path: str, target_videos: list, output_dir: str = None,
-                       gpu_memory_wait: int = 30, max_memory: int = 12,
-                       execution_threads: int = 31, temp_frame_quality: int = 100,
-                       keep_fps: bool = True) -> None:
+def process_video_batch(source_path: str, target_videos: list, output_dir: str,
+                       gpu_memory_wait: int, max_memory: int,
+                       execution_threads: int, temp_frame_quality: int,
+                       keep_fps: bool) -> None:
     """Procesar lote de videos con progreso detallado"""
     
     print("🚀 INICIANDO PROCESAMIENTO EN LOTE")
@@ -215,11 +215,11 @@ def main():
     parser = argparse.ArgumentParser(description='Procesar múltiples videos con ROOP')
     parser.add_argument('--source', required=True, help='Imagen fuente')
     parser.add_argument('--videos', nargs='+', required=True, help='Lista de videos a procesar')
-    parser.add_argument('--output-dir', help='Directorio de salida (opcional)')
+    parser.add_argument('--output-dir', required=True, help='Directorio de salida')
     parser.add_argument('--gpu-memory-wait', type=int, default=30, 
                        help='Tiempo de espera entre procesadores (segundos, default: 30)')
-    parser.add_argument('--max-memory', type=int, default=12, 
-                       help='Memoria máxima en GB (default: 12)')
+    parser.add_argument('--max-memory', type=int, default=8, 
+                       help='Memoria máxima en GB (default: 8)')
     parser.add_argument('--execution-threads', type=int, default=31, 
                        help='Número de hilos (default: 31)')
     parser.add_argument('--temp-frame-quality', type=int, default=100, 

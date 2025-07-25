@@ -71,10 +71,13 @@ def process_video_with_memory_management(source_path: str, frame_paths: list[str
     """Procesar video con gestión de memoria entre procesadores"""
     print(f"[{processor_name.upper()}] Iniciando procesamiento...")
     
-    progress_bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]'
+    # Formato más compacto para la barra de progreso
+    progress_bar_format = '{desc}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}'
     total = len(frame_paths)
     
-    with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', dynamic_ncols=True, bar_format=progress_bar_format) as progress:
+    with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', 
+              dynamic_ncols=True, bar_format=progress_bar_format, 
+              leave=False, position=0) as progress:
         # Crear una función de actualización que pase el número de frame
         def update_with_frame(frame_index):
             update_progress(progress, processor_name, frame_index + 1, total)
@@ -154,9 +157,12 @@ def pick_queue(queue: Queue[str], queue_per_future: int) -> List[str]:
 
 
 def process_video(source_path: str, frame_paths: list[str], process_frames: Callable[[str, List[str], Any], None]) -> None:
-    progress_bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]'
+    # Formato más compacto para la barra de progreso
+    progress_bar_format = '{desc}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}'
     total = len(frame_paths)
-    with tqdm(total=total, desc='Processing', unit='frame', dynamic_ncols=True, bar_format=progress_bar_format) as progress:
+    with tqdm(total=total, desc='Processing', unit='frame', 
+              dynamic_ncols=True, bar_format=progress_bar_format,
+              leave=False, position=0) as progress:
         multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress, "unknown", 0, total))
 
 
@@ -170,7 +176,7 @@ def update_progress(progress: Any = None, processor_name: str = "unknown", frame
         import torch
         if torch.cuda.is_available():
             gpu_memory = torch.cuda.memory_allocated() / 1024**3
-            gpu_info = f"GPU: {gpu_memory:.2f}GB"
+            gpu_info = f"GPU:{gpu_memory:.1f}GB"
     except:
         pass
     
@@ -181,13 +187,17 @@ def update_progress(progress: Any = None, processor_name: str = "unknown", frame
     else:
         progress_text = f"{frame_number}"
     
+    # Crear postfix más compacto
+    postfix_parts = []
+    postfix_parts.append(f"RAM:{memory_usage:.1f}GB")
+    if gpu_info:
+        postfix_parts.append(gpu_info)
+    postfix_parts.append(f"Threads:{roop.globals.execution_threads}")
+    
     progress.set_postfix({
         'processor': processor_name,
         'frame': progress_text,
-        'memory': '{:.2f}'.format(memory_usage).zfill(5) + 'GB',
-        'gpu_memory': gpu_info,
-        'providers': roop.globals.execution_providers,
-        'threads': roop.globals.execution_threads
+        'info': ' | '.join(postfix_parts)
     })
     progress.refresh()
     progress.update(1)
