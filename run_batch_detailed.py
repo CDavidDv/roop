@@ -73,15 +73,8 @@ def get_system_info():
     }
 
 def get_python_executable():
-    """Detectar el ejecutable de Python correcto"""
-    if os.path.exists("roop_env/bin/python"):
-        return "roop_env/bin/python"
-    elif os.path.exists("venv/bin/python"):
-        return "venv/bin/python"
-    elif os.path.exists("env/bin/python"):
-        return "env/bin/python"
-    else:
-        return sys.executable
+    """Siempre usar sys.executable para evitar entorno virtual en Colab"""
+    return sys.executable
 
 def process_video_with_monitoring(video_path: str, index: int, total: int) -> bool:
     """Procesar un video con monitoreo detallado"""
