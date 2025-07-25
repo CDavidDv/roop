@@ -9,6 +9,7 @@ from roop.face_analyser import get_one_face, get_many_faces, find_similar_face
 from roop.face_reference import get_face_reference, set_face_reference, clear_face_reference
 from roop.typing import Frame, Face
 from roop.utilities import resolve_relative_path, conditional_download, is_image, is_video
+import insightface
 
 FACE_SWAPPER = None
 THREAD_LOCK = threading.Lock()
@@ -22,40 +23,18 @@ def get_face_swapper() -> Any:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../models/inswapper_128.onnx')
             
-            # Configuración agresiva para GPU
-            available_providers = ort.get_available_providers()
-            print(f"[{NAME}] Proveedores disponibles: {available_providers}")
+            # Configuración simplificada para evitar errores de CUDA
+            print(f"[{NAME}] Configurando face swapper...")
             
-            # Configuración optimizada para GPU
-            provider_options = []
+            # Usar solo CPU por ahora para evitar errores de CUDA
+            provider_options = [
+                ('CPUExecutionProvider', {
+                    'intra_op_num_threads': 64,
+                    'inter_op_num_threads': 64,
+                })
+            ]
             
-            # Priorizar CUDA con configuración agresiva
-            if 'CUDAExecutionProvider' in available_providers:
-                cuda_options = {
-                    'device_id': 0,
-                    'arena_extend_strategy': 'kNextPowerOfTwo',
-                    'gpu_mem_limit': 8 * 1024 * 1024 * 1024,  # 8GB
-                    'cudnn_conv_use_max_workspace': '1',
-                    'do_copy_in_default_stream': '1',
-                }
-                provider_options = [
-                    ('CUDAExecutionProvider', cuda_options),
-                    ('CPUExecutionProvider', {
-                        'intra_op_num_threads': 64,
-                        'inter_op_num_threads': 64,
-                    })
-                ]
-                print(f"[{NAME}] ✅ Configurando GPU agresivo con CUDA")
-                print(f"[{NAME}] Opciones CUDA: {cuda_options}")
-            else:
-                # Fallback a CPU con optimizaciones
-                provider_options = [
-                    ('CPUExecutionProvider', {
-                        'intra_op_num_threads': 64,
-                        'inter_op_num_threads': 64,
-                    })
-                ]
-                print(f"[{NAME}] ❌ CUDA no disponible, usando CPU optimizado")
+            print(f"[{NAME}] ✅ Usando CPU optimizado (64 hilos)")
             
             # Crear sesión ONNX optimizada
             session_options = ort.SessionOptions()
@@ -67,18 +46,19 @@ def get_face_swapper() -> Any:
             print(f"[{NAME}] Configurando sesión ONNX agresiva")
             print(f"[{NAME}] Hilos de ejecución: 64")
             
-            # Cargar modelo con configuración agresiva
-            FACE_SWAPPER = insightface.model_zoo.get_model(
-                model_path, 
-                providers=provider_options,
-                session_options=session_options
-            )
-            
-            # Verificar configuración aplicada
-            if hasattr(FACE_SWAPPER, 'providers'):
-                print(f"[{NAME}] Modelo cargado con proveedores: {FACE_SWAPPER.providers}")
-            else:
-                print(f"[{NAME}] Modelo cargado (no se puede verificar proveedores)")
+            # Cargar modelo con configuración simplificada
+            try:
+                FACE_SWAPPER = insightface.model_zoo.get_model(
+                    model_path, 
+                    providers=provider_options,
+                    session_options=session_options
+                )
+                print(f"[{NAME}] ✅ Modelo cargado correctamente")
+            except Exception as e:
+                print(f"[{NAME}] ⚠️ Error cargando modelo: {e}")
+                # Fallback más simple
+                FACE_SWAPPER = insightface.model_zoo.get_model(model_path)
+                print(f"[{NAME}] ✅ Modelo cargado con configuración simple")
                 
     return FACE_SWAPPER
 
@@ -113,7 +93,7 @@ def post_process() -> None:
 
 
 def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
-    # Optimización: convertir a float32 para mejor rendimiento GPU
+    # Optimización: convertir a float32 para mejor rendimiento
     if temp_frame.dtype != numpy.float32:
         temp_frame = temp_frame.astype(numpy.float32)
     

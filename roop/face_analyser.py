@@ -15,14 +15,29 @@ def get_face_analyser() -> Any:
 
     with THREAD_LOCK:
         if FACE_ANALYSER is None:
-            FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l', providers=roop.globals.execution_providers)
-            FACE_ANALYSER.prepare(ctx_id=0)
+            # Configuración más simple para evitar errores de taskname
+            try:
+                FACE_ANALYSER = insightface.app.FaceAnalysis(
+                    name='buffalo_l', 
+                    providers=roop.globals.execution_providers,
+                    allowed_modules=['detection', 'recognition']
+                )
+                FACE_ANALYSER.prepare(ctx_id=0)
+                print("✅ Face analyser cargado con módulos permitidos")
+            except Exception as e:
+                print(f"⚠️ Error cargando face analyser: {e}")
+                # Fallback más simple
+                FACE_ANALYSER = insightface.app.FaceAnalysis(
+                    name='buffalo_l', 
+                    providers=roop.globals.execution_providers
+                )
+                FACE_ANALYSER.prepare(ctx_id=0)
+                print("✅ Face analyser cargado con configuración simple")
     return FACE_ANALYSER
 
 
 def clear_face_analyser() -> Any:
     global FACE_ANALYSER
-
     FACE_ANALYSER = None
 
 
