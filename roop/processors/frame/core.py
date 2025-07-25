@@ -4,6 +4,7 @@ import importlib
 import psutil
 import time
 import gc
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue
 from types import ModuleType
@@ -11,6 +12,9 @@ from typing import Any, List, Callable
 from tqdm import tqdm
 
 import roop
+
+# Suprimir warnings
+warnings.filterwarnings('ignore')
 
 FRAME_PROCESSORS_MODULES: List[ModuleType] = []
 FRAME_PROCESSORS_INTERFACE = [
@@ -67,159 +71,148 @@ def wait_for_gpu_memory_release(wait_time: int = 30):
     clear_gpu_memory()
 
 
+def get_optimal_thread_count():
+    """Obtener número óptimo de hilos según el sistema"""
+    cpu_count = psutil.cpu_count(logical=True)
+    
+    # Verificar si hay GPU disponible
+    try:
+        import torch
+        gpu_available = torch.cuda.is_available()
+    except ImportError:
+        gpu_available = False
+    
+    if gpu_available:
+        # Con GPU, usar menos hilos para evitar saturación
+        return min(16, cpu_count // 2)
+    else:
+        # Sin GPU, usar más hilos para CPU
+        return min(31, cpu_count - 1)
+
+
 def process_video_with_memory_management(source_path: str, frame_paths: list[str], process_frames: Callable[[str, List[str], Any], None], processor_name: str = "unknown") -> None:
     """Procesar video con gestión de memoria entre procesadores"""
-    print(f"[{processor_name.upper()}] Iniciando procesamiento...")
+    print(f"[{processor_name.upper()}] Iniciando procesamiento optimizado...")
     
     # Formato más compacto para la barra de progreso
     progress_bar_format = '{desc}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}'
     total = len(frame_paths)
     
+    # Obtener número óptimo de hilos
+    optimal_threads = get_optimal_thread_count()
+    execution_threads = roop.globals.execution_threads if roop.globals.execution_threads is not None else optimal_threads
+    
+    print(f"[{processor_name.upper()}] Usando {execution_threads} hilos para procesamiento paralelo")
+    
     with tqdm(total=total, desc=f'Processing {processor_name}', unit='frame', 
               dynamic_ncols=True, bar_format=progress_bar_format, 
               leave=False, position=0) as progress:
         
-        # Usar procesamiento paralelo real con ThreadPoolExecutor
-        max_workers = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
-        print(f"[{processor_name.upper()}] Usando {max_workers} hilos para procesamiento paralelo")
-        
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Usar procesamiento paralelo optimizado
+        with ThreadPoolExecutor(max_workers=execution_threads) as executor:
             futures = []
             queue = create_queue(frame_paths)
-            queue_per_future = max(len(frame_paths) // max_workers, 1)
+            queue_per_future = max(len(frame_paths) // execution_threads, 1)
             
-            # Crear función de actualización
+            # Crear función de actualización optimizada
             def update_with_frame(frame_index):
                 update_progress(progress, processor_name, frame_index + 1, total)
             
-            # Procesar frames en paralelo
+            # Procesar frames en paralelo con gestión de memoria
             while not queue.empty():
                 batch_frames = pick_queue(queue, queue_per_future)
                 future = executor.submit(process_frames, source_path, batch_frames, lambda: update_with_frame(len(futures)))
                 futures.append(future)
             
-            # Esperar que terminen todos los futures
+            # Esperar a que terminen todos los futures
             for future in as_completed(futures):
-                future.result()
-    
-    print(f"[{processor_name.upper()}] Procesamiento completado")
-    
-    # Liberar memoria después de cada procesador
-    clear_gpu_memory()
-    
-    # Pausa entre procesadores para liberar memoria
-    if processor_name.lower() != "face_enhancer":  # No pausar después del último procesador
-        wait_for_gpu_memory_release(roop.globals.gpu_memory_wait_time)  # Pausa configurable
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"[{processor_name.upper()}] Error en procesamiento: {e}")
+            
+            # Liberar memoria después del procesamiento
+            if roop.globals.gpu_memory_wait_time > 0:
+                wait_for_gpu_memory_release(roop.globals.gpu_memory_wait_time)
 
 
 def load_frame_processor_module(frame_processor: str) -> Any:
-    try:
-        frame_processor_module = importlib.import_module(f'roop.processors.frame.{frame_processor}')
-        for method_name in FRAME_PROCESSORS_INTERFACE:
-            if not hasattr(frame_processor_module, method_name):
-                raise NotImplementedError
-    except ModuleNotFoundError as e:
-        print(f'Frame processor {frame_processor} not found.')
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-    except NotImplementedError:
-        print(f'Frame processor {frame_processor} not implemented correctly.')
-        sys.exit(1)
-    except Exception as e:
-        print(f'Error importando frame processor {frame_processor}: {e}')
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    frame_processor_module = importlib.import_module('roop.processors.frame.' + frame_processor)
+    met_requirements = all(hasattr(frame_processor_module, frame_processor_interface) for frame_processor_interface in FRAME_PROCESSORS_INTERFACE)
+    if not met_requirements:
+        raise NotImplementedError
     return frame_processor_module
 
 
 def get_frame_processors_modules(frame_processors: List[str]) -> List[ModuleType]:
-    global FRAME_PROCESSORS_MODULES
-
-    if not FRAME_PROCESSORS_MODULES:
-        for frame_processor in frame_processors:
-            frame_processor_module = load_frame_processor_module(frame_processor)
-            FRAME_PROCESSORS_MODULES.append(frame_processor_module)
-    return FRAME_PROCESSORS_MODULES
+    frame_processors_modules = []
+    for frame_processor in frame_processors:
+        frame_processor_module = load_frame_processor_module(frame_processor)
+        frame_processors_modules.append(frame_processor_module)
+    return frame_processors_modules
 
 
 def multi_process_frame(source_path: str, temp_frame_paths: List[str], process_frames: Callable[[str, List[str], Any], None], update: Callable[[], None]) -> None:
     # Asegurar que execution_threads tenga un valor válido
-    max_workers = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
-    print(f"[THREADS] Usando {max_workers} hilos para procesamiento paralelo")
+    if roop.globals.execution_threads is None:
+        roop.globals.execution_threads = get_optimal_thread_count()
     
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        queue = create_queue(temp_frame_paths)
-        queue_per_future = max(len(temp_frame_paths) // max_workers, 1)
-        while not queue.empty():
-            future = executor.submit(process_frames, source_path, pick_queue(queue, queue_per_future), update)
-            futures.append(future)
-        for future in as_completed(futures):
-            future.result()
+    # Usar procesamiento optimizado con gestión de memoria
+    process_video_with_memory_management(source_path, temp_frame_paths, process_frames, "face_processor")
 
 
 def create_queue(temp_frame_paths: List[str]) -> Queue[str]:
-    queue: Queue[str] = Queue()
-    for frame_path in temp_frame_paths:
-        queue.put(frame_path)
+    queue = Queue()
+    for temp_frame_path in temp_frame_paths:
+        queue.put(temp_frame_path)
     return queue
 
 
 def pick_queue(queue: Queue[str], queue_per_future: int) -> List[str]:
-    queues = []
+    temp_frame_paths = []
     for _ in range(queue_per_future):
         if not queue.empty():
-            queues.append(queue.get())
-    return queues
+            temp_frame_paths.append(queue.get())
+    return temp_frame_paths
 
 
 def process_video(source_path: str, frame_paths: list[str], process_frames: Callable[[str, List[str], Any], None]) -> None:
     # Formato más compacto para la barra de progreso
     progress_bar_format = '{desc}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}'
     total = len(frame_paths)
-    with tqdm(total=total, desc='Processing', unit='frame', 
-              dynamic_ncols=True, bar_format=progress_bar_format,
+    
+    with tqdm(total=total, desc='Processing frames', unit='frame', 
+              dynamic_ncols=True, bar_format=progress_bar_format, 
               leave=False, position=0) as progress:
-        multi_process_frame(source_path, frame_paths, process_frames, lambda: update_progress(progress, "unknown", 0, total))
+        
+        # Usar procesamiento optimizado
+        optimal_threads = get_optimal_thread_count()
+        execution_threads = roop.globals.execution_threads if roop.globals.execution_threads is not None else optimal_threads
+        
+        with ThreadPoolExecutor(max_workers=execution_threads) as executor:
+            futures = []
+            queue = create_queue(frame_paths)
+            queue_per_future = max(len(frame_paths) // execution_threads, 1)
+            
+            def update_with_frame(frame_index):
+                update_progress(progress, "video_processor", frame_index + 1, total)
+            
+            while not queue.empty():
+                batch_frames = pick_queue(queue, queue_per_future)
+                future = executor.submit(process_frames, source_path, batch_frames, lambda: update_with_frame(len(futures)))
+                futures.append(future)
+            
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"[VIDEO_PROCESSOR] Error en procesamiento: {e}")
 
 
 def update_progress(progress: Any = None, processor_name: str = "unknown", frame_number: int = 0, total_frames: int = 0) -> None:
-    process = psutil.Process(os.getpid())
-    memory_usage = process.memory_info().rss / 1024 / 1024 / 1024
-    
-    # Información de GPU si está disponible
-    gpu_info = ""
-    try:
-        import torch
-        if torch.cuda.is_available():
-            gpu_memory = torch.cuda.memory_allocated() / 1024**3
-            gpu_info = f"GPU:{gpu_memory:.1f}GB"
-    except:
-        pass
-    
-    # Calcular porcentaje
-    if total_frames > 0:
-        percentage = (frame_number / total_frames) * 100
-        progress_text = f"{frame_number}/{total_frames} ({percentage:.1f}%)"
-    else:
-        progress_text = f"{frame_number}"
-    
-    # Obtener el valor correcto de threads
-    threads_value = roop.globals.execution_threads if roop.globals.execution_threads is not None else 8
-    
-    # Crear postfix más compacto
-    postfix_parts = []
-    postfix_parts.append(f"RAM:{memory_usage:.1f}GB")
-    if gpu_info:
-        postfix_parts.append(gpu_info)
-    postfix_parts.append(f"Threads:{threads_value}")
-    
-    progress.set_postfix({
-        'processor': processor_name,
-        'frame': progress_text,
-        'info': ' | '.join(postfix_parts)
-    })
-    progress.refresh()
-    progress.update(1)
+    if progress:
+        progress.update(1)
+        progress.set_postfix({
+            'frame': f'{frame_number}/{total_frames}',
+            'processor': processor_name
+        })

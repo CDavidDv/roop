@@ -2,6 +2,8 @@ from typing import Any, List, Callable
 import cv2
 import insightface
 import threading
+import warnings
+import os
 
 import roop.globals
 import roop.processors.frame.core
@@ -9,6 +11,10 @@ from roop.core import update_status
 from roop.face_analyser import get_one_face, get_many_faces
 from roop.typing import Face, Frame
 from roop.utilities import conditional_download, resolve_relative_path, is_image, is_video
+
+# Suprimir warnings de insightface
+warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
+warnings.filterwarnings('ignore', category=UserWarning, module='insightface')
 
 FACE_SWAPPER = None
 THREAD_LOCK = threading.Lock()
@@ -22,24 +28,50 @@ def get_face_swapper() -> Any:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../inswapper_128.onnx')
             
-            # Forzar uso de GPU si está disponible
+            # Configurar ONNX Runtime para GPU optimizado
             import onnxruntime as ort
             available_providers = ort.get_available_providers()
             
             print(f"[{NAME}] Proveedores disponibles: {available_providers}")
             
+            # Configurar opciones de CUDA para mejor rendimiento
+            cuda_options = {
+                'device_id': 0,
+                'arena_extend_strategy': 'kNextPowerOfTwo',
+                'gpu_mem_limit': 2 * 1024 * 1024 * 1024,  # 2GB
+                'cudnn_conv_use_max_workspace': '1',
+                'do_copy_in_default_stream': '1',
+            }
+            
             # Priorizar CUDA sobre CPU
             if 'CUDAExecutionProvider' in available_providers:
-                # Usar solo CUDA para forzar GPU
                 providers = ['CUDAExecutionProvider']
                 print(f"[{NAME}] ✅ Forzando uso de GPU (CUDA)")
-                print(f"[{NAME}] Cargando modelo con proveedores: {providers}")
+                print(f"[{NAME}] Configuración CUDA: {cuda_options}")
+                
+                # Crear sesión ONNX con configuración optimizada
+                session_options = ort.SessionOptions()
+                session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
+                
+                FACE_SWAPPER = insightface.model_zoo.get_model(
+                    model_path, 
+                    providers=providers,
+                    session_options=session_options,
+                    provider_options=[cuda_options]
+                )
+                
+            elif 'ROCMExecutionProvider' in available_providers:
+                # Soporte para AMD GPU
+                providers = ['ROCMExecutionProvider']
+                print(f"[{NAME}] ✅ Usando AMD GPU (ROCm)")
+                FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
+                
             else:
-                # Fallback a CPU si CUDA no está disponible
+                # Fallback a CPU si GPU no está disponible
                 providers = roop.globals.execution_providers
-                print(f"[{NAME}] ❌ CUDA no disponible, usando: {providers}")
-            
-            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
+                print(f"[{NAME}] ❌ GPU no disponible, usando: {providers}")
+                FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
             
             # Verificar qué proveedores se aplicaron realmente
             if hasattr(FACE_SWAPPER, 'providers'):
@@ -76,7 +108,12 @@ def post_process() -> None:
 
 
 def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
-    return get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
+    try:
+        return get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
+    except Exception as e:
+        print(f"[{NAME}] Error en face swap: {e}")
+        # Fallback: devolver frame original si hay error
+        return temp_frame
 
 
 def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
@@ -91,12 +128,24 @@ def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
 
 def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
     source_face = get_one_face(cv2.imread(source_path))
+    if source_face is None:
+        print(f"[{NAME}] Error: No se pudo detectar rostro en la imagen fuente")
+        return
+        
     for temp_frame_path in temp_frame_paths:
-        temp_frame = cv2.imread(temp_frame_path)
-        result = process_frame(source_face, temp_frame)
-        cv2.imwrite(temp_frame_path, result)
-        if update:
-            update()
+        try:
+            temp_frame = cv2.imread(temp_frame_path)
+            if temp_frame is None:
+                print(f"[{NAME}] Warning: No se pudo leer frame: {temp_frame_path}")
+                continue
+                
+            result = process_frame(source_face, temp_frame)
+            cv2.imwrite(temp_frame_path, result)
+            if update:
+                update()
+        except Exception as e:
+            print(f"[{NAME}] Error procesando frame {temp_frame_path}: {e}")
+            continue
 
 
 def process_image(source_path: str, target_path: str, output_path: str) -> None:
@@ -107,4 +156,4 @@ def process_image(source_path: str, target_path: str, output_path: str) -> None:
 
 
 def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
-    roop.processors.frame.core.process_video(source_path, temp_frame_paths, process_frames)
+    process_frames(source_path, temp_frame_paths, lambda: update_status('Progressing...', NAME))

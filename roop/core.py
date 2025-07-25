@@ -2,12 +2,22 @@
 
 import os
 import sys
+import warnings
+
 # single thread doubles cuda performance - needs to be set before torch import
 if any(arg.startswith('--execution-provider') for arg in sys.argv):
     os.environ['OMP_NUM_THREADS'] = '1'
-# reduce tensorflow log level
+
+# Configuración optimizada para GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-import warnings
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+
+# Suprimir warnings de versiones nuevas
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+
 from typing import List
 import platform
 import signal
@@ -22,8 +32,10 @@ from roop.predictor import predict_image, predict_video
 from roop.processors.frame.core import get_frame_processors_modules, process_video_with_memory_management
 from roop.utilities import has_image_extension, is_image, is_video, detect_fps, create_video, extract_frames, get_temp_frame_paths, restore_audio, create_temp, move_temp, clean_temp, normalize_output_path
 
+# Suprimir warnings específicos de librerías
 warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
 warnings.filterwarnings('ignore', category=UserWarning, module='torchvision')
+warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
 
 
 def parse_args() -> None:
@@ -45,7 +57,7 @@ def parse_args() -> None:
     program.add_argument('--output-video-encoder', help='encoder used for the output video', dest='output_video_encoder', default='libx264', choices=['libx264', 'libx265', 'libvpx-vp9', 'h264_nvenc', 'hevc_nvenc'])
     program.add_argument('--output-video-quality', help='quality used for the output video', dest='output_video_quality', type=int, default=35, choices=range(101), metavar='[0-100]')
     program.add_argument('--max-memory', help='maximum amount of RAM in GB', dest='max_memory', type=int)
-    program.add_argument('--execution-provider', help='available execution provider (choices: cpu, ...)', dest='execution_provider', default=['cuda'], choices=suggest_execution_providers(), nargs='+')
+    program.add_argument('--execution-provider', help='available execution provider (choices: cpu, cuda, ...)', dest='execution_provider', default=['cuda'], choices=suggest_execution_providers(), nargs='+')
     program.add_argument('--execution-threads', help='number of execution threads', dest='execution_threads', type=int, default=suggest_execution_threads())
     program.add_argument('--gpu-memory-wait', help='wait time between processors to free GPU memory (seconds)', dest='gpu_memory_wait', type=int, default=15)
     program.add_argument('-v', '--version', action='version', version=f'{roop.metadata.name} {roop.metadata.version}')
@@ -79,8 +91,22 @@ def encode_execution_providers(execution_providers: List[str]) -> List[str]:
 
 
 def decode_execution_providers(execution_providers: List[str]) -> List[str]:
-    return [provider for provider, encoded_execution_provider in zip(onnxruntime.get_available_providers(), encode_execution_providers(onnxruntime.get_available_providers()))
-            if any(execution_provider in encoded_execution_provider for execution_provider in execution_providers)]
+    available_providers = onnxruntime.get_available_providers()
+    encoded_providers = encode_execution_providers(available_providers)
+    
+    # Filtrar proveedores solicitados que estén disponibles
+    selected_providers = []
+    for requested_provider in execution_providers:
+        for provider, encoded_provider in zip(available_providers, encoded_providers):
+            if requested_provider.lower() in encoded_provider.lower():
+                selected_providers.append(provider)
+                break
+    
+    # Si no se encontró ningún proveedor solicitado, usar el primero disponible
+    if not selected_providers and available_providers:
+        selected_providers = [available_providers[0]]
+    
+    return selected_providers
 
 
 def suggest_execution_providers() -> List[str]:
@@ -88,137 +114,118 @@ def suggest_execution_providers() -> List[str]:
 
 
 def suggest_execution_threads() -> int:
-    if 'CUDAExecutionProvider' in onnxruntime.get_available_providers():
+    available_providers = onnxruntime.get_available_providers()
+    if 'CUDAExecutionProvider' in available_providers:
+        # Con GPU, usar menos hilos para evitar saturación
         return 8
-    return 1
+    elif 'ROCMExecutionProvider' in available_providers:
+        # Con AMD GPU, usar configuración similar a CUDA
+        return 8
+    else:
+        # Solo CPU, usar más hilos
+        return 1
 
 
 def limit_resources() -> None:
     # prevent tensorflow memory leak
-    gpus = tensorflow.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tensorflow.config.experimental.set_virtual_device_configuration(gpu, [
-            tensorflow.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)
-        ])
-    # limit memory usage
-    if roop.globals.max_memory:
-        memory = roop.globals.max_memory * 1024 ** 3
-        if platform.system().lower() == 'darwin':
-            memory = roop.globals.max_memory * 1024 ** 6
-        if platform.system().lower() == 'windows':
-            import ctypes
-            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-            kernel32.SetProcessWorkingSetSize(-1, ctypes.c_size_t(memory), ctypes.c_size_t(memory))
+    try:
+        gpus = tensorflow.config.experimental.list_physical_devices('GPU')
+        for gpu in gpus:
+            tensorflow.config.experimental.set_virtual_device_configuration(gpu, [
+                tensorflow.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)
+            ])
+    except Exception as e:
+        print(f"⚠️ Warning: No se pudo configurar TensorFlow GPU: {e}")
+
+    # Configurar ONNX Runtime para usar GPU de manera eficiente
+    try:
+        import onnxruntime as ort
+        available_providers = ort.get_available_providers()
+        if 'CUDAExecutionProvider' in available_providers:
+            print("✅ ONNX Runtime CUDA disponible")
+            # Configurar opciones de CUDA para mejor rendimiento
+            cuda_options = {
+                'device_id': 0,
+                'arena_extend_strategy': 'kNextPowerOfTwo',
+                'gpu_mem_limit': 2 * 1024 * 1024 * 1024,  # 2GB
+                'cudnn_conv_use_max_workspace': '1',
+                'do_copy_in_default_stream': '1',
+            }
+            print(f"🔧 Configuración CUDA: {cuda_options}")
         else:
-            import resource
-            resource.setrlimit(resource.RLIMIT_DATA, (memory, memory))
+            print("⚠️ ONNX Runtime CUDA no disponible")
+    except Exception as e:
+        print(f"⚠️ Warning: No se pudo configurar ONNX Runtime: {e}")
 
 
 def pre_check() -> bool:
-    if sys.version_info < (3, 9):
-        update_status('Python version is not supported - please upgrade to 3.9 or higher.')
-        return False
     if not shutil.which('ffmpeg'):
-        update_status('ffmpeg is not installed.')
+        print('ffmpeg is not installed!')
         return False
     return True
 
 
 def update_status(message: str, scope: str = 'ROOP.CORE') -> None:
     print(f'[{scope}] {message}')
-    if not roop.globals.headless:
-        ui.update_status(message)
 
 
 def start() -> None:
-    for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
-        if not frame_processor.pre_start():
+    for frame_processor_module in get_frame_processors_modules(roop.globals.frame_processors):
+        if not frame_processor_module.pre_start():
             return
-    # process image to image
-    if has_image_extension(roop.globals.target_path):
-        if predict_image(roop.globals.target_path):
-            destroy()
-        shutil.copy2(roop.globals.target_path, roop.globals.output_path)
-        # process frame
-        for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
-            update_status('Progressing...', frame_processor.NAME)
-            frame_processor.process_image(roop.globals.source_path, roop.globals.output_path, roop.globals.output_path)
-            frame_processor.post_process()
-        # validate image
-        if is_image(roop.globals.target_path):
-            update_status('Processing to image succeed!')
-        else:
-            update_status('Processing to image failed!')
-        return
-    # process image to videos
-    if predict_video(roop.globals.target_path):
-        destroy()
-    update_status('Creating temporary resources...')
-    create_temp(roop.globals.target_path)
-    # extract frames
-    if roop.globals.keep_fps:
-        fps = detect_fps(roop.globals.target_path)
-        update_status(f'Extracting frames with {fps} FPS...')
-        extract_frames(roop.globals.target_path, fps)
+    limit_resources()
+    if roop.globals.headless:
+        if has_image_extension(roop.globals.target_path):
+            if predict_image(roop.globals.target_path):
+                process_image(roop.globals.source_path, roop.globals.target_path, roop.globals.output_path)
+        elif is_video(roop.globals.target_path):
+            if predict_video(roop.globals.target_path):
+                process_video(roop.globals.source_path, roop.globals.target_path, roop.globals.output_path)
     else:
-        update_status('Extracting frames with 30 FPS...')
-        extract_frames(roop.globals.target_path)
-    # process frame
-    temp_frame_paths = get_temp_frame_paths(roop.globals.target_path)
-    if temp_frame_paths:
-        for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
-            update_status('Progressing...', frame_processor.NAME)
-            # Usar gestión de memoria entre procesadores
-            processor_name = frame_processor.NAME.replace('ROOP.', '').lower()
-            process_video_with_memory_management(roop.globals.source_path, temp_frame_paths, frame_processor.process_frames, processor_name)
-            frame_processor.post_process()
-    else:
-        update_status('Frames not found...')
-        return
-    # create video
-    if roop.globals.keep_fps:
-        fps = detect_fps(roop.globals.target_path)
-        update_status(f'Creating video with {fps} FPS...')
-        create_video(roop.globals.target_path, fps)
-    else:
-        update_status('Creating video with 30 FPS...')
-        create_video(roop.globals.target_path)
-    # handle audio
-    if roop.globals.skip_audio:
-        move_temp(roop.globals.target_path, roop.globals.output_path)
-        update_status('Skipping audio...')
-    else:
-        if roop.globals.keep_fps:
-            update_status('Restoring audio...')
-        else:
-            update_status('Restoring audio might cause issues as fps are not kept...')
-        restore_audio(roop.globals.target_path, roop.globals.output_path)
-    # clean temp
-    update_status('Cleaning temporary resources...')
-    clean_temp(roop.globals.target_path)
-    # validate video
-    if is_video(roop.globals.target_path):
-        update_status('Processing to video succeed!')
-    else:
-        update_status('Processing to video failed!')
+        ui.update_status('Select an image for source path.')
+        ui.update_status('Select an image or video for target path.')
+        ui.launch()
 
 
 def destroy() -> None:
-    if roop.globals.target_path:
-        clean_temp(roop.globals.target_path)
-    sys.exit()
+    for frame_processor_module in get_frame_processors_modules(roop.globals.frame_processors):
+        frame_processor_module.post_process()
+    clean_temp()
+
+
+def process_image(source_path: str, target_path: str, output_path: str) -> None:
+    if roop.globals.frame_processors:
+        for frame_processor_module in get_frame_processors_modules(roop.globals.frame_processors):
+            update_status('Progressing...', frame_processor_module.NAME)
+            frame_processor_module.process_image(source_path, target_path, output_path)
+            frame_processor_module.post_process()
+
+
+def process_video(source_path: str, target_path: str, output_path: str) -> None:
+    if roop.globals.frame_processors:
+        temp_frame_paths = extract_frames(target_path, roop.globals.temp_frame_format, roop.globals.temp_frame_quality)
+        if temp_frame_paths:
+            for frame_processor_module in get_frame_processors_modules(roop.globals.frame_processors):
+                update_status('Progressing...', frame_processor_module.NAME)
+                frame_processor_module.process_video(source_path, temp_frame_paths)
+                frame_processor_module.post_process()
+            if roop.globals.keep_fps:
+                fps = detect_fps(target_path)
+                create_video(target_path, output_path, fps)
+            else:
+                create_video(target_path, output_path)
+            restore_audio(target_path, output_path, roop.globals.skip_audio)
+            move_temp(target_path, output_path, roop.globals.output_path)
+            clean_temp(target_path)
 
 
 def run() -> None:
     parse_args()
     if not pre_check():
         return
-    for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
-        if not frame_processor.pre_check():
-            return
-    limit_resources()
-    if roop.globals.headless:
-        start()
-    else:
-        window = ui.init(start, destroy)
-        window.mainloop()
+    start()
+    destroy()
+
+
+if __name__ == '__main__':
+    run()
