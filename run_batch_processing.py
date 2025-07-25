@@ -81,8 +81,10 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
         )
         
         # Mostrar salida en tiempo real
+        output_lines = []
         for line in process.stdout:
             line = line.strip()
+            output_lines.append(line)
             if line:
                 # Filtrar solo mensajes importantes de progreso
                 if any(keyword in line for keyword in [
@@ -91,16 +93,22 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
                     'Face-Swapper', 'Face-Enhancer', 'ROOP.CORE'
                 ]):
                     print(f"  📈 {line}")
-        
+
         # Esperar a que termine el proceso
         return_code = process.wait()
-        
+
         if return_code == 0:
             print("-" * 40)
             print(f"✅ Video procesado exitosamente: {os.path.basename(output_path)}")
             return True
         else:
             print(f"❌ Error en el procesamiento (código: {return_code})")
+            print("---- SALIDA COMPLETA DEL PROCESO ----")
+            for l in output_lines:
+                print(l)
+            if process.stderr:
+                print("---- STDERR ----")
+                print(process.stderr.read())
             return False
             
     except subprocess.CalledProcessError as e:
