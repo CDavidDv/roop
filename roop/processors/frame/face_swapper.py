@@ -22,31 +22,9 @@ def get_face_swapper() -> Any:
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
             model_path = resolve_relative_path('../models/inswapper_128.onnx')
-
-            print(f"[{NAME}] 🔥 CARGANDO FACE SWAPPER CON GPU")
-
-            # Configuración para GPU
-            session_options = ort.SessionOptions()
-            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            session_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
-
-            # Usar CUDA si está disponible, sino CPU
-            available_providers = ort.get_available_providers()
-            if 'CUDAExecutionProvider' in available_providers:
-                providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-                print(f"[{NAME}] ✅ Usando GPU + CPU")
-            else:
-                providers = ['CPUExecutionProvider']
-                print(f"[{NAME}] ⚠️ Usando solo CPU")
-
-            print(f"[{NAME}] Cargando modelo: {model_path}")
-            FACE_SWAPPER = insightface.model_zoo.get_model(
-                model_path,
-                providers=providers,
-                session_options=session_options
-            )
-            print(f"[{NAME}] ✅ Modelo cargado correctamente")
-
+            # Usar GPU si está disponible, sino CPU
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if 'CUDAExecutionProvider' in roop.globals.execution_providers else roop.globals.execution_providers
+            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, providers=providers)
     return FACE_SWAPPER
 
 
@@ -80,83 +58,34 @@ def post_process() -> None:
 
 
 def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
-    """Realizar el face swap real"""
-    try:
-        print(f"[{NAME}] 🔄 Realizando face swap...")
-
-        # Obtener el modelo de face swap
-        swapper = get_face_swapper()
-
-        # Realizar el face swap
-        result = swapper.get(temp_frame, target_face, source_face, paste_back=True)
-
-        print(f"[{NAME}] ✅ Face swap completado")
-        return result
-
-    except Exception as e:
-        print(f"[{NAME}] ❌ Error en face swap: {e}")
-        return temp_frame
+    return get_face_swapper().get(temp_frame, target_face, source_face, paste_back=True)
 
 
 def process_frame(source_face: Face, reference_face: Face, temp_frame: Frame) -> Frame:
-    """Procesar un frame con face swap"""
-    try:
-        if roop.globals.many_faces:
-            many_faces = get_many_faces(temp_frame)
-            if many_faces:
-                print(f"[{NAME}] 🔍 Detectadas {len(many_faces)} caras")
-                for target_face in many_faces:
-                    temp_frame = swap_face(source_face, target_face, temp_frame)
-        else:
-            target_face = find_similar_face(temp_frame, reference_face)
-            if target_face:
-                print(f"[{NAME}] 🔍 Cara similar encontrada")
+    if roop.globals.many_faces:
+        many_faces = get_many_faces(temp_frame)
+        if many_faces:
+            for target_face in many_faces:
                 temp_frame = swap_face(source_face, target_face, temp_frame)
-            else:
-                print(f"[{NAME}] ⚠️ No se encontró cara similar")
-
-        return temp_frame
-
-    except Exception as e:
-        print(f"[{NAME}] ❌ Error procesando frame: {e}")
-        return temp_frame
+    else:
+        target_face = find_similar_face(temp_frame, reference_face)
+        if target_face:
+            temp_frame = swap_face(source_face, target_face, temp_frame)
+    return temp_frame
 
 
 def process_frames(source_path: str, temp_frame_paths: List[str], update: Callable[[], None]) -> None:
-    """Procesar múltiples frames"""
-    print(f"[{NAME}] 🚀 Iniciando procesamiento de {len(temp_frame_paths)} frames")
-
-    # Obtener cara fuente
     source_face = get_one_face(cv2.imread(source_path))
-    if not source_face:
-        print(f"[{NAME}] ❌ No se detectó cara en imagen fuente")
-        return
-
-    print(f"[{NAME}] ✅ Cara fuente detectada")
-
-    # Obtener cara de referencia
     reference_face = None if roop.globals.many_faces else get_face_reference()
-
-    # Procesar cada frame
-    for i, temp_frame_path in enumerate(temp_frame_paths):
-        print(f"[{NAME}] 📹 Procesando frame {i+1}/{len(temp_frame_paths)}")
-
+    for temp_frame_path in temp_frame_paths:
         temp_frame = cv2.imread(temp_frame_path)
-        if temp_frame is None:
-            print(f"[{NAME}] ⚠️ No se pudo cargar frame: {temp_frame_path}")
-            continue
-
         result = process_frame(source_face, reference_face, temp_frame)
         cv2.imwrite(temp_frame_path, result)
-
         if update:
             update()
 
-    print(f"[{NAME}] ✅ Procesamiento completado")
-
 
 def process_image(source_path: str, target_path: str, output_path: str) -> None:
-    """Procesar una imagen"""
     source_face = get_one_face(cv2.imread(source_path))
     target_frame = cv2.imread(target_path)
     reference_face = None if roop.globals.many_faces else get_one_face(target_frame, roop.globals.reference_face_position)
@@ -165,7 +94,6 @@ def process_image(source_path: str, target_path: str, output_path: str) -> None:
 
 
 def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
-    """Procesar un video"""
     if not roop.globals.many_faces and not get_face_reference():
         reference_frame = cv2.imread(temp_frame_paths[roop.globals.reference_frame_number])
         reference_face = get_one_face(reference_frame, roop.globals.reference_face_position)
