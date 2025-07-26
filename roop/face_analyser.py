@@ -22,6 +22,7 @@ def get_face_analyser() -> Any:
 
 def clear_face_analyser() -> Any:
     global FACE_ANALYSER
+
     FACE_ANALYSER = None
 
 

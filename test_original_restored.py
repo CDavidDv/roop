@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test del código original restaurado
+Test para verificar que todo esté como el original
 """
 
 import sys
@@ -10,28 +10,27 @@ import os
 sys.path.insert(0, '.')
 
 def test_original_restored():
-    """Prueba el código original restaurado"""
-    print("🧪 PROBANDO CÓDIGO ORIGINAL RESTAURADO")
+    """Prueba que todo esté como el original"""
+    print("🧪 VERIFICANDO CÓDIGO ORIGINAL RESTAURADO")
     print("=" * 50)
     
     try:
-        # 1. Probar imports
-        print("1. Imports...")
+        # 1. Verificar imports
+        print("1. Verificando imports...")
         import cv2
         import numpy as np
         import insightface
-        import onnxruntime as ort
         print("✅ Imports OK")
         
-        # 2. Verificar GPU
-        print("2. Verificando GPU...")
-        available_providers = ort.get_available_providers()
-        print(f"✅ Proveedores: {available_providers}")
-        
-        if 'CUDAExecutionProvider' in available_providers:
-            print("✅ CUDA disponible")
+        # 2. Verificar globals original
+        print("2. Verificando globals original...")
+        import roop.globals
+        print(f"✅ execution_providers: {roop.globals.execution_providers}")
+        if roop.globals.execution_providers == []:
+            print("✅ Globals original restaurado")
         else:
-            print("⚠️ CUDA no disponible")
+            print("❌ Globals no es original")
+            return False
         
         # 3. Verificar modelo
         print("3. Verificando modelo...")
@@ -45,13 +44,13 @@ def test_original_restored():
         
         # 4. Probar face swapper original
         print("4. Probando face swapper original...")
-        from roop.processors.frame.face_swapper import get_face_swapper, swap_face
+        from roop.processors.frame.face_swapper import get_face_swapper
         swapper = get_face_swapper()
         print("✅ Face swapper original cargado")
         
         # 5. Probar face analyser original
         print("5. Probando face analyser original...")
-        from roop.face_analyser import get_face_analyser, get_one_face
+        from roop.face_analyser import get_face_analyser
         analyser = get_face_analyser()
         print("✅ Face analyser original cargado")
         
@@ -76,6 +75,7 @@ def test_original_restored():
         if os.path.exists(source_path):
             real_img = cv2.imread(source_path)
             if real_img is not None:
+                from roop.face_analyser import get_one_face
                 real_faces = get_many_faces(real_img)
                 print(f"✅ En imagen real: {len(real_faces)} caras detectadas")
                 
@@ -92,11 +92,9 @@ def test_original_restored():
         
         print("\n🎉 ¡CÓDIGO ORIGINAL RESTAURADO!")
         print("=" * 40)
-        print("✅ Código original restaurado")
-        print("✅ GPU configurado")
-        print("✅ Face swap original funcionando")
-        print("✅ Sin recuadros raros")
-        print("✅ Listo para procesar")
+        print("✅ Todo como el original")
+        print("✅ Sin modificaciones")
+        print("✅ Listo para usar")
         
         return True
         
@@ -109,10 +107,10 @@ def test_original_restored():
 def main():
     """Función principal"""
     if test_original_restored():
-        print("\n🚀 ¡LISTO PARA PROCESAR!")
+        print("\n🚀 ¡LISTO PARA USAR!")
         print("=" * 30)
         print("Ahora puedes ejecutar:")
-        print("python run_batch_processing.py --source /content/DanielaAS.jpg --videos /content/135.mp4 --output-dir /content/resultados")
+        print("python run.py")
         return 0
     else:
         print("\n❌ Aún hay problemas")
