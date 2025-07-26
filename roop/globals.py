@@ -1,5 +1,4 @@
 from typing import List, Optional
-import onnxruntime as ort
 
 source_path: Optional[str] = None
 target_path: Optional[str] = None
@@ -19,12 +18,8 @@ output_video_encoder: Optional[str] = None
 output_video_quality: Optional[int] = None
 max_memory: Optional[int] = None
 
-# Configuración GPU: usar CUDA si está disponible, sino CPU
-available_providers = ort.get_available_providers()
-if 'CUDAExecutionProvider' in available_providers:
-    execution_providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-else:
-    execution_providers = ['CPUExecutionProvider']
+# AGREGAR GPU AL ORIGINAL
+execution_providers: List[str] = ['CUDAExecutionProvider', 'CPUExecutionProvider']
 
 execution_threads: Optional[int] = None
 log_level: str = 'error'
