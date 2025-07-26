@@ -2,6 +2,7 @@ import threading
 from typing import Any, Optional, List
 import insightface
 import numpy
+import cv2
 
 import roop.globals
 from roop.typing import Frame, Face
@@ -46,11 +47,43 @@ def get_many_faces(frame: Frame) -> Optional[List[Face]]:
     try:
         analyser = get_face_analyser()
         if analyser is None:
-            # Fallback simple si no hay analyser
-            return []
+            # Fallback simple si no hay analyser - usar detección básica
+            return detect_faces_basic(frame)
         return analyser.get(frame)
     except Exception as e:
         print(f"⚠️ Error en detección de caras: {e}")
+        return detect_faces_basic(frame)
+
+
+def detect_faces_basic(frame: Frame) -> List[Face]:
+    """Detección básica de caras usando OpenCV"""
+    try:
+        # Convertir a escala de grises
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Cargar clasificador de caras de OpenCV
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        
+        # Detectar caras
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        
+        # Convertir a formato de Face
+        face_objects = []
+        for (x, y, w, h) in faces:
+            # Crear objeto Face simple
+            face_obj = type('Face', (), {
+                'bbox': [x, y, x + w, y + h],
+                'kps': None,
+                'det_score': 0.9,
+                'normed_embedding': numpy.zeros(512)  # Embedding dummy
+            })()
+            face_objects.append(face_obj)
+        
+        print(f"🔍 Detectadas {len(face_objects)} caras con OpenCV")
+        return face_objects
+        
+    except Exception as e:
+        print(f"⚠️ Error en detección básica: {e}")
         return []
 
 
