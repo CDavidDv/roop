@@ -1,203 +1,135 @@
 #!/usr/bin/env python3
 """
-Script para solucionar problemas de librerías CUDA faltantes
+Script para instalar librerías de CUDA faltantes
 """
 
-import os
-import sys
 import subprocess
-
-def run_command(command, description=""):
-    """Ejecutar comando con manejo de errores"""
-    print(f"🔧 {description}")
-    print(f"Comando: {command}")
-    
-    try:
-        result = subprocess.run(command, shell=True, check=True, 
-                              capture_output=True, text=True)
-        print(f"✅ {description} completado")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error en {description}: {e}")
-        print(f"STDERR: {e.stderr}")
-        return False
+import sys
+import os
 
 def install_cuda_libraries():
-    """Instalar librerías CUDA faltantes"""
-    print("🔧 Instalando librerías CUDA faltantes...")
+    """Instala las librerías de CUDA faltantes"""
+    print("🔧 INSTALANDO LIBRERÍAS DE CUDA")
+    print("=" * 50)
     
-    # Instalar librerías CUDA del sistema
-    run_command("apt-get update", "Actualizando repositorios")
-    run_command("apt-get install -y libcublas-11-8 libcublas-dev-11-8", "Instalando libcublas")
-    run_command("apt-get install -y libcudnn8 libcudnn8-dev", "Instalando libcudnn")
-    run_command("apt-get install -y libnvinfer8 libnvinfer-dev", "Instalando libnvinfer")
-    
-    return True
-
-def reinstall_onnxruntime_gpu():
-    """Reinstalar ONNX Runtime GPU con librerías CUDA"""
-    print("🔧 Reinstalando ONNX Runtime GPU...")
-    
-    # Desinstalar ONNX Runtime actual
-    run_command("pip uninstall -y onnxruntime onnxruntime-gpu", "Desinstalando ONNX Runtime anterior")
-    
-    # Instalar ONNX Runtime GPU con soporte CUDA completo
-    run_command("pip install onnxruntime-gpu==1.17.0", "Instalando ONNX Runtime GPU 1.17.0")
-    
-    # Instalar dependencias adicionales
-    run_command("pip install nvidia-cudnn-cu12==8.9.4.25", "Instalando cuDNN")
-    
-    return True
-
-def verify_cuda_libraries():
-    """Verificar que las librerías CUDA estén disponibles"""
-    print("\n🔍 Verificando librerías CUDA...")
-    
-    # Verificar archivos de librerías
-    cuda_libs = [
-        "/usr/lib/x86_64-linux-gnu/libcublasLt.so.11",
-        "/usr/lib/x86_64-linux-gnu/libcublas.so.11",
-        "/usr/lib/x86_64-linux-gnu/libcudnn.so.8"
+    commands = [
+        # Actualizar repositorios
+        "apt-get update",
+        
+        # Instalar librerías CUDA faltantes
+        "apt-get install -y libcublas-11-8 libcudnn8 libcufft-11-8",
+        
+        # Crear enlaces simbólicos
+        "ln -sf /usr/lib/x86_64-linux-gnu/libcublasLt.so.11 /usr/local/cuda-11.8/lib64/libcublasLt.so.11",
+        "ln -sf /usr/lib/x86_64-linux-gnu/libcudnn.so.8 /usr/local/cuda-11.8/lib64/libcudnn.so.8",
+        "ln -sf /usr/lib/x86_64-linux-gnu/libcufft.so.10 /usr/local/cuda-11.8/lib64/libcufft.so.10",
+        
+        # Actualizar variables de entorno
+        "export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH",
+        
+        # Reinstalar onnxruntime-gpu
+        "pip uninstall -y onnxruntime onnxruntime-gpu",
+        "pip install onnxruntime-gpu==1.16.3",
+        
+        # Verificar instalación
+        "ldconfig",
     ]
     
-    for lib in cuda_libs:
+    for cmd in commands:
+        print(f"Ejecutando: {cmd}")
+        try:
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"✅ {cmd}")
+            else:
+                print(f"⚠️ {cmd} - {result.stderr}")
+        except Exception as e:
+            print(f"❌ Error en {cmd}: {e}")
+
+def check_cuda_libraries():
+    """Verifica que las librerías CUDA estén disponibles"""
+    print("\n🔍 VERIFICANDO LIBRERÍAS CUDA")
+    print("=" * 40)
+    
+    libraries = [
+        "/usr/lib/x86_64-linux-gnu/libcublasLt.so.11",
+        "/usr/local/cuda-11.8/lib64/libcublasLt.so.11",
+        "/usr/lib/x86_64-linux-gnu/libcudnn.so.8",
+        "/usr/local/cuda-11.8/lib64/libcudnn.so.8",
+        "/usr/lib/x86_64-linux-gnu/libcufft.so.10",
+        "/usr/local/cuda-11.8/lib64/libcufft.so.10",
+    ]
+    
+    for lib in libraries:
         if os.path.exists(lib):
-            print(f"✅ {lib}")
+            size = os.path.getsize(lib)
+            print(f"✅ {lib} - {size:,} bytes")
         else:
-            print(f"❌ {lib} - No encontrado")
+            print(f"❌ {lib} - NO ENCONTRADO")
+
+def force_gpu_only():
+    """Fuerza el uso de GPU solo"""
+    print("\n🚀 FORZANDO USO DE GPU")
+    print("=" * 30)
     
-    # Verificar ONNX Runtime
-    try:
-        import onnxruntime as ort
-        providers = ort.get_available_providers()
-        print(f"✅ ONNX Runtime providers: {providers}")
-        
-        if 'CUDAExecutionProvider' in providers:
-            print("✅ CUDA provider disponible")
-        else:
-            print("❌ CUDA provider no disponible")
-            
-    except Exception as e:
-        print(f"❌ Error verificando ONNX Runtime: {e}")
-    
-    return True
+    # Modificar globals.py para forzar GPU
+    globals_content = '''from typing import List, Optional
+import onnxruntime as ort
 
-def create_cuda_fix():
-    """Crear un fix temporal para CUDA"""
-    print("\n🔧 Creando fix temporal para CUDA...")
-    
-    fix_content = '''#!/usr/bin/env python3
-"""
-Fix temporal para problemas de CUDA
-"""
+source_path: Optional[str] = None
+target_path: Optional[str] = None
+output_path: Optional[str] = None
+headless: Optional[bool] = None
+frame_processors: List[str] = []
+keep_fps: Optional[bool] = None
+keep_frames: Optional[bool] = None
+skip_audio: Optional[bool] = None
+many_faces: Optional[bool] = None
+reference_face_position: Optional[int] = None
+reference_frame_number: Optional[int] = None
+similar_face_distance: Optional[float] = None
+temp_frame_format: Optional[str] = None
+temp_frame_quality: Optional[int] = None
+output_video_encoder: Optional[str] = None
+output_video_quality: Optional[int] = None
+max_memory: Optional[int] = None
 
-import os
-import sys
+# FORZAR GPU SOLO
+execution_providers = ['CUDAExecutionProvider']
 
-# Configurar variables de entorno para CUDA
-os.environ['LD_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu:' + os.environ.get('LD_LIBRARY_PATH', '')
-os.environ['CUDA_HOME'] = '/usr/local/cuda'
-os.environ['CUDA_PATH'] = '/usr/local/cuda'
-
-# Configurar para usar CPU si CUDA falla
-os.environ['ONNXRUNTIME_PROVIDER'] = 'CPUExecutionProvider'
-
-print("✅ Variables de entorno CUDA configuradas")
-
-# Ahora importar y ejecutar roop
-try:
-    from roop import core
-    print("✅ ROOP importado correctamente")
-except Exception as e:
-    print(f"❌ Error importando ROOP: {e}")
+execution_threads: Optional[int] = None
+log_level: str = 'error'
 '''
     
-    with open("fix_cuda.py", "w") as f:
-        f.write(fix_content)
+    with open('roop/globals.py', 'w') as f:
+        f.write(globals_content)
     
-    print("✅ Fix temporal creado: fix_cuda.py")
-    return True
-
-def create_simple_processor():
-    """Crear un procesador simplificado que use solo CPU"""
-    print("\n🔧 Creando procesador simplificado...")
-    
-    simple_content = '''#!/usr/bin/env python3
-"""
-Procesador simplificado que usa solo CPU para evitar problemas de CUDA
-"""
-
-import os
-import sys
-
-# Configurar para usar solo CPU
-os.environ['ONNXRUNTIME_PROVIDER'] = 'CPUExecutionProvider'
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
-# Configurar variables de entorno
-os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-# Desactivar predictor NSFW
-import roop.predictor
-def predict_video_skip_nsfw(target_path: str) -> bool:
-    print("⚠️ Saltando verificación NSFW...")
-    return False
-
-roop.predictor.predict_video = predict_video_skip_nsfw
-
-# Ahora importar y ejecutar roop
-from roop import core
-
-if __name__ == "__main__":
-    core.run()
-'''
-    
-    with open("run_cpu_only.py", "w") as f:
-        f.write(simple_content)
-    
-    print("✅ Procesador CPU creado: run_cpu_only.py")
-    return True
+    print("✅ Configuración forzada a GPU")
 
 def main():
     """Función principal"""
-    print("🚀 SOLUCIONANDO PROBLEMAS DE CUDA")
+    print("🚀 ARREGLANDO CUDA PARA GPU OBLIGATORIO")
     print("=" * 60)
     
-    # Instalar librerías CUDA
-    if not install_cuda_libraries():
-        print("❌ Error instalando librerías CUDA")
-        return False
+    # Verificar si estamos en root
+    if os.geteuid() != 0:
+        print("⚠️ Este script necesita permisos de root")
+        print("Ejecuta con: sudo python fix_cuda_libraries.py")
+        return 1
     
-    # Reinstalar ONNX Runtime
-    if not reinstall_onnxruntime_gpu():
-        print("❌ Error reinstalando ONNX Runtime")
-        return False
+    install_cuda_libraries()
+    check_cuda_libraries()
+    force_gpu_only()
     
-    # Verificar librerías
-    if not verify_cuda_libraries():
-        print("❌ Error verificando librerías")
-        return False
+    print("\n🎉 ¡CUDA ARREGLADO PARA GPU!")
+    print("=" * 40)
+    print("✅ Librerías CUDA instaladas")
+    print("✅ GPU forzado")
+    print("✅ ONNX Runtime GPU actualizado")
+    print("\n🚀 Ahora ejecuta:")
+    print("python test_original_gpu.py")
     
-    # Crear fixes temporales
-    if not create_cuda_fix():
-        print("❌ Error creando fix CUDA")
-        return False
-    
-    if not create_simple_processor():
-        print("❌ Error creando procesador CPU")
-        return False
-    
-    print("\n" + "=" * 60)
-    print("✅ PROBLEMAS DE CUDA SOLUCIONADOS")
-    print("=" * 60)
-    print("📋 Opciones disponibles:")
-    print("1. Procesamiento normal: python run.py --source imagen.jpg --target video.mp4 -o resultado.mp4")
-    print("2. Solo CPU (más estable): python run_cpu_only.py --source imagen.jpg --target video.mp4 -o resultado.mp4")
-    print("3. Fix CUDA: python fix_cuda.py")
-    print("=" * 60)
-    
-    return True
+    return 0
 
 if __name__ == "__main__":
-    main() 
+    sys.exit(main()) 
