@@ -17,11 +17,6 @@ temp_frame_quality: Optional[int] = None
 output_video_encoder: Optional[str] = None
 output_video_quality: Optional[int] = None
 max_memory: Optional[int] = None
-
-# AGREGAR GPU AL ORIGINAL
-execution_providers: List[str] = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-
+execution_providers: List[str] = []
 execution_threads: Optional[int] = None
 log_level: str = 'error'
-# Tiempo de espera entre procesadores para liberar memoria GPU (en segundos)
-gpu_memory_wait_time: int = 5
