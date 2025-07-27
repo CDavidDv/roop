@@ -17,9 +17,9 @@ Este proyecto ha sido optimizado específicamente para Google Colab con GPU T4, 
 %cd roop
 ```
 
-### Paso 2: Instalar dependencias optimizadas
+### Paso 2: Instalar ROOP y dependencias optimizadas
 ```bash
-!python install_colab_gpu.py
+!python install_roop_colab.py
 ```
 
 ### Paso 3: Optimizar GPU
