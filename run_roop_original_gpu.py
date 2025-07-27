@@ -206,6 +206,56 @@ def process_folder_batch(source_path: str, input_folder: str, output_dir: str,
         max_memory, execution_threads, temp_frame_quality, keep_fps
     )
 
+def fix_directory_structure():
+    """Arreglar estructura de directorios si es necesario"""
+    print("🔧 VERIFICANDO ESTRUCTURA DE DIRECTORIOS...")
+    
+    try:
+        import roop
+        print("✅ Módulo roop disponible")
+        return True
+    except ImportError:
+        print("❌ Módulo roop no disponible, intentando arreglar...")
+        
+        # Buscar el directorio correcto
+        current_dir = os.getcwd()
+        
+        def search_roop_module(start_path):
+            for root, dirs, files in os.walk(start_path):
+                if 'run.py' in files:
+                    run_path = os.path.join(root, 'run.py')
+                    try:
+                        with open(run_path, 'r') as f:
+                            content = f.read()
+                            if 'from roop import' in content:
+                                return root
+                    except:
+                        pass
+            return None
+        
+        roop_dir = search_roop_module(current_dir)
+        
+        if roop_dir:
+            print(f"✅ Directorio encontrado: {roop_dir}")
+            os.chdir(roop_dir)
+            print(f"✅ Cambiado a: {os.getcwd()}")
+            
+            # Configurar path
+            if roop_dir not in sys.path:
+                sys.path.insert(0, roop_dir)
+            
+            # Probar importación
+            try:
+                import roop
+                print("✅ Módulo roop importado exitosamente")
+                return True
+            except ImportError as e:
+                print(f"❌ Error importando roop: {e}")
+                return False
+        else:
+            print("❌ No se pudo encontrar el directorio correcto")
+            return False
+
 def main():
     parser = argparse.ArgumentParser(description="ROOP Original optimizado para Google Colab T4")
     parser.add_argument('--source', required=True, help='Ruta de la imagen fuente')
@@ -218,6 +268,11 @@ def main():
     parser.add_argument('--keep-fps', action='store_true', help='Mantener FPS original')
     
     args = parser.parse_args()
+    
+    # Arreglar estructura de directorios si es necesario
+    if not fix_directory_structure():
+        print("❌ No se pudo arreglar la estructura de directorios")
+        return
     
     # Configurar GPU
     if not setup_gpu():
