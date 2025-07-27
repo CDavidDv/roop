@@ -1,13 +1,13 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
 
-# PyTorch stack optimizado para T4
+# PyTorch stack
 torch==2.1.0+cu118
 torchaudio==2.1.0+cu118
 torchtext==0.16.0
 torchvision==0.16.0+cu118
 triton==2.1.0
 
-# TensorFlow stack optimizado para GPU
+# TensorFlow stack
 tensorflow==2.15.0
 tensorflow-estimator==2.15.0
 tensorboard==2.15.1
@@ -16,7 +16,7 @@ tensorboard==2.15.1
 numpy==1.26.4
 typing-extensions==4.11.0
 
-# Vision / AI tools optimizados para GPU
+# Vision / AI tools
 onnx==1.14.0
 onnxruntime-gpu==1.15.1
 opencv-python==4.8.0.74
@@ -44,7 +44,3 @@ pydantic-core==2.20.0
 pandas-stubs==2.0.3.230814
 lmdb==1.5.1
 tqdm==4.65.0
-
-# Optimizaciones para GPU en Colab
-psutil==5.9.5
-nvidia-ml-py3==7.352.0
