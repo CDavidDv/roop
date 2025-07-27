@@ -110,17 +110,31 @@ def process_video_colab_optimized(source_path: str, target_path: str, output_pat
         return False
     
     # Construir comando optimizado para Colab
-    cmd = [
-        sys.executable, 'run.py',
-        '--source', source_path,
-        '--target', target_path,
-        '-o', output_path,
-        '--frame-processor', 'face_swapper', 'face_enhancer',
-        '--gpu-memory-wait', str(gpu_memory_wait),
-        '--max-memory', str(max_memory),
-        '--execution-threads', str(execution_threads),
-        '--temp-frame-quality', str(temp_frame_quality)
-    ]
+    # Usar el wrapper si existe, sino usar run.py directamente
+    if os.path.exists('roop_wrapper.py'):
+        cmd = [
+            sys.executable, 'roop_wrapper.py',
+            '--source', source_path,
+            '--target', target_path,
+            '-o', output_path,
+            '--frame-processor', 'face_swapper', 'face_enhancer',
+            '--gpu-memory-wait', str(gpu_memory_wait),
+            '--max-memory', str(max_memory),
+            '--execution-threads', str(execution_threads),
+            '--temp-frame-quality', str(temp_frame_quality)
+        ]
+    else:
+        cmd = [
+            sys.executable, 'run.py',
+            '--source', source_path,
+            '--target', target_path,
+            '-o', output_path,
+            '--frame-processor', 'face_swapper', 'face_enhancer',
+            '--gpu-memory-wait', str(gpu_memory_wait),
+            '--max-memory', str(max_memory),
+            '--execution-threads', str(execution_threads),
+            '--temp-frame-quality', str(temp_frame_quality)
+        ]
     
     if keep_fps:
         cmd.append('--keep-fps')
