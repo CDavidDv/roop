@@ -70,16 +70,29 @@ def process_single_video(source_path: str, target_path: str, output_path: str,
     print("=" * 60)
     
     # Construir comando para ROOP original
-    cmd = [
-        sys.executable, 'run.py',
-        '--source', source_path,
-        '--target', target_path,
-        '-o', output_path,
-        '--frame-processor', 'face_swapper', 'face_enhancer',
-        '--max-memory', str(max_memory),
-        '--execution-threads', str(execution_threads),
-        '--temp-frame-quality', str(temp_frame_quality)
-    ]
+    # Usar wrapper si existe para evitar problemas de NSFW
+    if os.path.exists('run_roop_wrapper.py'):
+        cmd = [
+            sys.executable, 'run_roop_wrapper.py',
+            '--source', source_path,
+            '--target', target_path,
+            '-o', output_path,
+            '--frame-processor', 'face_swapper', 'face_enhancer',
+            '--max-memory', str(max_memory),
+            '--execution-threads', str(execution_threads),
+            '--temp-frame-quality', str(temp_frame_quality)
+        ]
+    else:
+        cmd = [
+            sys.executable, 'run.py',
+            '--source', source_path,
+            '--target', target_path,
+            '-o', output_path,
+            '--frame-processor', 'face_swapper', 'face_enhancer',
+            '--max-memory', str(max_memory),
+            '--execution-threads', str(execution_threads),
+            '--temp-frame-quality', str(temp_frame_quality)
+        ]
     
     if keep_fps:
         cmd.append('--keep-fps')
