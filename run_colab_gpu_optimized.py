@@ -219,7 +219,7 @@ def main():
     parser = argparse.ArgumentParser(description="ROOP optimizado para Google Colab T4")
     parser.add_argument('--source', required=True, help='Ruta de la imagen fuente')
     parser.add_argument('--target', required=True, help='Ruta del video objetivo')
-    parser.add_argument('-o', '--output', required=True, help='Ruta de salida')
+    parser.add_argument('-o', '--output', help='Ruta de salida (requerido para modo single)')
     parser.add_argument('--gpu-memory-wait', type=int, default=30, help='Tiempo de espera GPU (s)')
     parser.add_argument('--max-memory', type=int, default=12, help='Memoria máxima (GB)')
     parser.add_argument('--execution-threads', type=int, default=4, help='Hilos de ejecución')
@@ -232,6 +232,10 @@ def main():
     
     if args.batch:
         # Modo lote
+        if not args.output_dir:
+            print("❌ Error: --output-dir es requerido en modo batch")
+            return
+            
         target_videos = [args.target] if os.path.isfile(args.target) else []
         if os.path.isdir(args.target):
             target_videos = [os.path.join(args.target, f) for f in os.listdir(args.target) 
@@ -248,6 +252,10 @@ def main():
         )
     else:
         # Modo single
+        if not args.output:
+            print("❌ Error: -o/--output es requerido en modo single")
+            return
+            
         process_video_colab_optimized(
             args.source, args.target, args.output,
             args.gpu_memory_wait, args.max_memory, args.execution_threads,
