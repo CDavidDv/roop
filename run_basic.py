@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para ejecutar ROOP en modo headless sin dependencias de GUI
+Script básico para Google Colab - Procesamiento directo con parámetros mínimos
 """
 
 import os
@@ -48,7 +48,7 @@ class HeadlessUI:
         self.max_memory = 12
         self.execution_threads = 8
         self.temp_frame_quality = 100
-        self.output_quality = 100
+        self.output_video_quality = 100
         self.temp_frame_format = "png"
         self.keep_fps = True
         self.headless = True
@@ -108,18 +108,18 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     output_name = f"{source_name}_{target_base}.mp4"
     return output_name
 
-def process_video_headless(source_path: str, target_path: str, output_path: str, 
-                          gpu_memory_wait: int = 30, max_memory: int = 12, 
-                          execution_threads: int = 30, temp_frame_quality: int = 100,
-                          keep_fps: bool = True) -> bool:
-    """Procesar un solo video en modo headless"""
+def process_video_basic(source_path: str, target_path: str, output_path: str, 
+                       gpu_memory_wait: int = 30, max_memory: int = 12, 
+                       execution_threads: int = 30, temp_frame_quality: int = 100,
+                       keep_fps: bool = True) -> bool:
+    """Procesar un solo video con parámetros básicos"""
     
     print(f"\n🎬 PROCESANDO: {target_path}")
     print(f"📸 Source: {source_path}")
     print(f"💾 Output: {output_path}")
     print("=" * 60)
     
-    # Construir comando con parámetros válidos
+    # Construir comando con parámetros básicos y válidos
     cmd = [
         "python", 'run.py',
         '--source', source_path,
@@ -157,7 +157,7 @@ def process_videos_batch(source_path: str, input_folder: str, output_folder: str
                         keep_fps: bool = True) -> None:
     """Procesar todos los videos de una carpeta"""
     
-    print("🚀 INICIANDO PROCESAMIENTO EN LOTE (MODO HEADLESS)")
+    print("🚀 INICIANDO PROCESAMIENTO EN LOTE (MODO BÁSICO)")
     print("=" * 60)
     print(f"📸 Source: {source_path}")
     print(f"📁 Carpeta de entrada: {input_folder}")
@@ -209,7 +209,7 @@ def process_videos_batch(source_path: str, input_folder: str, output_folder: str
             
             # Procesar video
             start_time = time.time()
-            success = process_video_headless(
+            success = process_video_basic(
                 source_path=source_path,
                 target_path=video_file,
                 output_path=output_path,
@@ -249,7 +249,7 @@ def process_videos_batch(source_path: str, input_folder: str, output_folder: str
 def main():
     """Función principal"""
     
-    parser = argparse.ArgumentParser(description='Procesar videos con ROOP usando GPU (modo headless)')
+    parser = argparse.ArgumentParser(description='Procesar videos con ROOP usando GPU (modo básico)')
     parser.add_argument('--source', default='/content/sources/DanielaAS.jpg', 
                        help='Ruta de la imagen fuente (default: /content/sources/DanielaAS.jpg)')
     parser.add_argument('--input-folder', default='/content/videos',
@@ -269,7 +269,7 @@ def main():
     
     args = parser.parse_args()
     
-    print("🎯 PROCESAMIENTO HEADLESS PARA GOOGLE COLAB T4")
+    print("🎯 PROCESAMIENTO BÁSICO PARA GOOGLE COLAB T4")
     print("=" * 60)
     print(f"📸 Source: {args.source}")
     print(f"📁 Input Folder: {args.input_folder}")
