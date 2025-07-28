@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
 """
-Script optimizado para procesar múltiples videos con ROOP usando GPU
-Sin entorno virtual - directo con Python
+Script simplificado para procesar múltiples videos con ROOP usando GPU
+Usa subprocess para llamar directamente a run.py
 """
 
 import os
 import sys
 import argparse
+import subprocess
 import time
 import glob
 from pathlib import Path
-import warnings
 
 # Configurar variables de entorno para GPU
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['OMP_NUM_THREADS'] = '1'
-
-# Suprimir warnings
-warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
-warnings.filterwarnings('ignore', category=UserWarning, module='torchvision')
-
-# Importar ROOP después de configurar variables de entorno
-import roop.globals
-import roop.metadata
-from roop.processors.frame.core import process_video_with_memory_management
-from roop.utilities import normalize_output_path, is_video, is_image
 
 def check_file_exists(file_path: str, file_type: str) -> bool:
     """Verificar si un archivo existe"""
@@ -40,69 +30,47 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     output_name = f"{source_name}_{target_base}.mp4"
     return output_name
 
-
-
 def process_single_video(source_path: str, target_path: str, output_path: str,
                         frame_processors: list = ['face_swapper', 'face_enhancer'],
                         keep_fps: bool = True, max_memory: int = 12,
                         execution_threads: int = 8, temp_frame_quality: int = 100,
                         gpu_memory_wait: int = 30) -> bool:
-    """Procesar un solo video usando ROOP directamente"""
+    """Procesar un solo video usando subprocess"""
     
     print(f"\n🎬 PROCESANDO: {target_path}")
     print(f"📸 Source: {source_path}")
     print(f"💾 Output: {output_path}")
     print("=" * 60)
     
+    # Construir comando
+    cmd = [
+        "python", "run.py",
+        "--source", source_path,
+        "--target", target_path,
+        "-o", output_path,
+        "--max-memory", str(max_memory),
+        "--execution-threads", str(execution_threads),
+        "--temp-frame-quality", str(temp_frame_quality),
+        "--gpu-memory-wait", str(gpu_memory_wait)
+    ]
+    
+    # Agregar frame processors
+    for processor in frame_processors:
+        cmd.extend(["--frame-processor", processor])
+    
+    # Agregar keep-fps si está habilitado
+    if keep_fps:
+        cmd.append("--keep-fps")
+    
     try:
-        # Importar y ejecutar el flujo completo de ROOP
-        from roop.core import start, limit_resources, pre_check, parse_args
-        from roop.processors.frame.core import get_frame_processors_modules
-        
-        # Configurar argumentos de línea de comandos para ROOP
-        import sys
-        original_argv = sys.argv.copy()
-        sys.argv = [
-            'run_batch_gpu.py',
-            '--source', source_path,
-            '--target', target_path,
-            '-o', output_path,
-            '--frame-processor'] + frame_processors + [
-            '--max-memory', str(max_memory),
-            '--execution-threads', str(execution_threads),
-            '--temp-frame-quality', str(temp_frame_quality),
-            '--gpu-memory-wait', str(gpu_memory_wait)
-        ]
-        
-        if keep_fps:
-            sys.argv.append('--keep-fps')
-        
-        # Parsear argumentos para configurar ROOP
-        parse_args()
-        
-        # Restaurar argumentos originales
-        sys.argv = original_argv
-        
-        # Verificar pre-condiciones
-        if not pre_check():
-            return False
-            
-        # Verificar procesadores
-        for frame_processor in get_frame_processors_modules(roop.globals.frame_processors):
-            if not frame_processor.pre_check():
-                return False
-        
-        # Limitar recursos
-        limit_resources()
-        
-        # Ejecutar procesamiento
-        start()
-        
+        # Ejecutar comando
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"✅ Video procesado exitosamente: {output_path}")
         return True
-        
-    except Exception as e:
-        print(f"❌ Error procesando {target_path}: {str(e)}")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error procesando {target_path}:")
+        print(f"STDOUT: {e.stdout}")
+        print(f"STDERR: {e.stderr}")
         return False
 
 def get_videos_from_folder(folder_path: str) -> list:

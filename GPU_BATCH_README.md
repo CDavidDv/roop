@@ -40,7 +40,23 @@ Este script optimizado permite procesar múltiples videos con face swap usando G
 print("✅ Configuración completada")
 ```
 
-### 2. Procesar Videos con GPU
+### 2. Procesar Videos con GPU (Versión Simplificada - RECOMENDADA)
+
+```python
+# Ejecutar procesamiento optimizado para GPU
+!python run_batch_gpu_simple.py \
+  --source /content/DanielaAS.jpg \
+  --input-folder /content/videos \
+  --output-folder /content/resultados \
+  --frame-processors face_swapper face_enhancer \
+  --max-memory 12 \
+  --execution-threads 8 \
+  --temp-frame-quality 100 \
+  --gpu-memory-wait 30 \
+  --keep-fps
+```
+
+### 3. Procesar Videos con GPU (Versión Avanzada)
 
 ```python
 # Ejecutar procesamiento optimizado para GPU
@@ -135,6 +151,19 @@ print("🎬 ¡Procesamiento con GPU completado!")
 - **T4 15GB VRAM**: ~2-5 minutos por minuto de video
 - **Memoria RAM**: ~12GB utilizados
 - **Almacenamiento**: ~500MB por minuto de video procesado
+
+## 🔄 Diferencias entre Versiones
+
+### Versión Simplificada (`run_batch_gpu_simple.py`) - RECOMENDADA
+- ✅ **Más estable**: Usa subprocess para llamar a `run.py` directamente
+- ✅ **Menos errores**: Evita problemas de importación y configuración
+- ✅ **Más confiable**: Funciona igual que el comando original de ROOP
+- ✅ **Fácil de debuggear**: Errores claros y específicos
+
+### Versión Avanzada (`run_batch_gpu.py`)
+- ✅ **Más eficiente**: Usa las funciones de ROOP directamente
+- ⚠️ **Más compleja**: Puede tener problemas de configuración
+- ⚠️ **Requiere más testing**: Necesita más validación
 
 ## 🔄 Diferencias con el Script Anterior
 
