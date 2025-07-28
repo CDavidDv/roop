@@ -100,7 +100,9 @@ def check_dependencies():
         "opencv-python",
         "numpy",
         "pillow",
-        "onnxruntime-gpu"
+        "onnxruntime-gpu",
+        "opennsfw2",
+        "insightface"
     ]
     
     missing_packages = []
@@ -115,8 +117,33 @@ def check_dependencies():
     
     if missing_packages:
         print(f"\n⚠️ Paquetes faltantes: {', '.join(missing_packages)}")
-        print("💡 Instala con: pip install " + " ".join(missing_packages))
-        return False
+        print("💡 Instalando automáticamente...")
+        
+        # Instalar dependencias faltantes
+        import subprocess
+        import sys
+        
+        for package in missing_packages:
+            try:
+                print(f"📦 Instalando {package}...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+                print(f"✅ {package} instalado")
+            except subprocess.CalledProcessError:
+                print(f"❌ Error instalando {package}")
+                return False
+        
+        # Verificar nuevamente
+        print("\n🔍 Verificando instalación...")
+        for package in required_packages:
+            try:
+                __import__(package.replace("-", "_"))
+                print(f"✅ {package}")
+            except ImportError:
+                print(f"❌ {package} - AÚN FALTANTE")
+                return False
+        
+        print("✅ Todas las dependencias están instaladas")
+        return True
     else:
         print("✅ Todas las dependencias están instaladas")
         return True
