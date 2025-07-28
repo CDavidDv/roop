@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script de instalación completa para ROOP en Google Colab
+Script de instalación de dependencias esenciales para ROOP (sin GUI)
 """
 
 import subprocess
@@ -22,36 +22,30 @@ def install_package(package_name, description=""):
         print(f"❌ Error instalando {package_name}: {e}")
         return False
 
-def install_all_dependencies():
-    """Instalar todas las dependencias necesarias"""
+def install_essential_dependencies():
+    """Instalar solo las dependencias esenciales (sin GUI)"""
     
-    print("🚀 INSTALACIÓN COMPLETA DE DEPENDENCIAS")
+    print("🚀 INSTALACIÓN DE DEPENDENCIAS ESENCIALES")
     print("=" * 60)
     
-    # Lista completa de dependencias
+    # Solo dependencias esenciales (sin GUI)
     dependencies = [
         ("opencv-python", "Procesamiento de imágenes y videos"),
-        ("opencv-contrib-python", "Funciones adicionales de OpenCV"),
         ("pillow", "Procesamiento de imágenes"),
         ("onnxruntime-gpu", "Runtime de ONNX para GPU"),
         ("opennsfw2", "Detección de contenido NSFW"),
         ("insightface", "Reconocimiento facial"),
         ("onnx", "Formato de modelo ONNX"),
         ("tensorflow", "Framework de machine learning"),
-        ("tensorflow-gpu", "TensorFlow con soporte GPU"),
         ("albumentations", "Aumentación de datos"),
         ("scikit-image", "Procesamiento de imágenes"),
         ("scipy", "Cálculos científicos"),
-        ("matplotlib", "Visualización de datos"),
-        ("seaborn", "Visualización estadística"),
-        ("tqdm", "Barras de progreso"),
-        ("psutil", "Información del sistema"),
-        ("GPUtil", "Información de GPU"),
-        ("customtkinter", "Interfaz gráfica moderna"),
-        ("tkinterdnd2", "Drag and drop para tkinter"),
         ("numpy", "Cálculos numéricos"),
         ("torch", "PyTorch para deep learning"),
-        ("torchvision", "Vision models para PyTorch")
+        ("torchvision", "Vision models para PyTorch"),
+        ("tqdm", "Barras de progreso"),
+        ("psutil", "Información del sistema"),
+        ("GPUtil", "Información de GPU")
     ]
     
     successful = 0
@@ -168,30 +162,30 @@ def show_usage_examples():
     
     print("\n🎯 EJEMPLOS DE USO")
     print("=" * 60)
-    print("1. Procesamiento básico:")
-    print("   python run_simple_gpu.py")
+    print("1. Procesamiento básico (modo headless):")
+    print("   python run_headless.py")
     print()
     print("2. Con imagen personalizada:")
-    print("   python run_simple_gpu.py --source /content/sources/mi_imagen.jpg")
+    print("   python run_headless.py --source /content/sources/mi_imagen.jpg")
     print()
     print("3. Con carpetas personalizadas:")
-    print("   python run_simple_gpu.py --source /content/sources/mi_imagen.jpg \\")
+    print("   python run_headless.py --source /content/sources/mi_imagen.jpg \\")
     print("   --input-folder /content/mis_videos --output-folder /content/mis_resultados")
     print()
     print("4. Con parámetros optimizados:")
-    print("   python run_simple_gpu.py --max-memory 10 --execution-threads 20")
+    print("   python run_headless.py --max-memory 10 --execution-threads 20")
     print("=" * 60)
 
 def main():
     """Función principal"""
     
-    print("🎯 INSTALACIÓN COMPLETA PARA ROOP GPU")
+    print("🎯 INSTALACIÓN ESENCIAL PARA ROOP GPU (SIN GUI)")
     print("=" * 60)
     
     start_time = time.time()
     
-    # Instalar dependencias
-    deps_ok = install_all_dependencies()
+    # Instalar dependencias esenciales
+    deps_ok = install_essential_dependencies()
     
     # Configurar entorno
     setup_environment()
@@ -218,7 +212,7 @@ def main():
         print("\n💡 Próximos pasos:")
         print("1. Sube tu imagen fuente a /content/sources/")
         print("2. Sube tus videos a /content/videos/")
-        print("3. Ejecuta: python run_simple_gpu.py")
+        print("3. Ejecuta: python run_headless.py")
     else:
         print("\n⚠️ INSTALACIÓN INCOMPLETA")
         print("💡 Revisa los errores arriba")
