@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script optimizado para Google Colab - Procesamiento de videos con ROOP usando GPU
+Script simplificado para Google Colab - Procesamiento directo sin GUI
 """
 
 import os
@@ -15,14 +15,6 @@ from pathlib import Path
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Desactivar predictor NSFW para evitar errores de GPU
-import roop.predictor
-def predict_video_skip_nsfw(target_path: str) -> bool:
-    print("⚠️ Saltando verificación NSFW para evitar conflictos de GPU...")
-    return False
-
-roop.predictor.predict_video = predict_video_skip_nsfw
-
 def get_video_files_from_folder(folder_path: str) -> list:
     """Obtener todos los archivos de video de una carpeta"""
     video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.wmv', '*.flv', '*.webm']
@@ -31,7 +23,6 @@ def get_video_files_from_folder(folder_path: str) -> list:
     for ext in video_extensions:
         pattern = os.path.join(folder_path, ext)
         video_files.extend(glob.glob(pattern))
-        # También buscar con extensión en mayúsculas
         pattern_upper = os.path.join(folder_path, ext.upper())
         video_files.extend(glob.glob(pattern_upper))
     
@@ -43,18 +34,18 @@ def get_output_filename(source_name: str, target_name: str) -> str:
     output_name = f"{source_name}_{target_base}.mp4"
     return output_name
 
-def process_video(source_path: str, target_path: str, output_path: str, 
-                 gpu_memory_wait: int = 30, max_memory: int = 12, 
-                 execution_threads: int = 30, temp_frame_quality: int = 100,
-                 keep_fps: bool = True) -> bool:
-    """Procesar un solo video"""
+def process_video_direct(source_path: str, target_path: str, output_path: str, 
+                        gpu_memory_wait: int = 30, max_memory: int = 12, 
+                        execution_threads: int = 30, temp_frame_quality: int = 100,
+                        keep_fps: bool = True) -> bool:
+    """Procesar un solo video directamente sin GUI"""
     
     print(f"\n🎬 PROCESANDO: {target_path}")
     print(f"📸 Source: {source_path}")
     print(f"💾 Output: {output_path}")
     print("=" * 60)
     
-    # Construir comando para Colab con calidad máxima
+    # Construir comando optimizado para calidad máxima
     cmd = [
         "python", 'run.py',
         '--source', source_path,
@@ -66,7 +57,8 @@ def process_video(source_path: str, target_path: str, output_path: str,
         '--execution-threads', str(execution_threads),
         '--temp-frame-quality', str(temp_frame_quality),
         '--output-quality', '100',
-        '--temp-frame-format', 'png'
+        '--temp-frame-format', 'png',
+        '--headless'  # Modo sin interfaz gráfica
     ]
     
     if keep_fps:
@@ -86,13 +78,13 @@ def process_video(source_path: str, target_path: str, output_path: str,
         print(f"❌ Error: No se encontró el comando 'python'")
         return False
 
-def process_videos_from_folders(source_path: str, input_folder: str, output_folder: str,
-                              gpu_memory_wait: int = 30, max_memory: int = 12,
-                              execution_threads: int = 30, temp_frame_quality: int = 100,
-                              keep_fps: bool = True) -> None:
+def process_videos_batch(source_path: str, input_folder: str, output_folder: str,
+                        gpu_memory_wait: int = 30, max_memory: int = 12,
+                        execution_threads: int = 30, temp_frame_quality: int = 100,
+                        keep_fps: bool = True) -> None:
     """Procesar todos los videos de una carpeta"""
     
-    print("🚀 INICIANDO PROCESAMIENTO EN LOTE PARA COLAB")
+    print("🚀 INICIANDO PROCESAMIENTO EN LOTE")
     print("=" * 60)
     print(f"📸 Source: {source_path}")
     print(f"📁 Carpeta de entrada: {input_folder}")
@@ -143,7 +135,7 @@ def process_videos_from_folders(source_path: str, input_folder: str, output_fold
         
         # Procesar video
         start_time = time.time()
-        success = process_video(
+        success = process_video_direct(
             source_path=source_path,
             target_path=video_file,
             output_path=output_path,
@@ -177,9 +169,9 @@ def process_videos_from_folders(source_path: str, input_folder: str, output_fold
     print("=" * 60)
 
 def main():
-    """Función principal para uso en Colab"""
+    """Función principal"""
     
-    parser = argparse.ArgumentParser(description='Procesar videos con ROOP usando GPU')
+    parser = argparse.ArgumentParser(description='Procesar videos con ROOP usando GPU (modo simple)')
     parser.add_argument('--source', default='/content/DanielaAS.jpg', 
                        help='Ruta de la imagen fuente (default: /content/DanielaAS.jpg)')
     parser.add_argument('--input-folder', default='/content/videos',
@@ -199,14 +191,7 @@ def main():
     
     args = parser.parse_args()
     
-    # Parámetros optimizados para T4 GPU
-    GPU_MEMORY_WAIT = args.gpu_memory_wait
-    MAX_MEMORY = args.max_memory
-    EXECUTION_THREADS = args.execution_threads
-    TEMP_FRAME_QUALITY = args.temp_frame_quality
-    KEEP_FPS = args.keep_fps
-    
-    print("🎯 CONFIGURACIÓN PARA GOOGLE COLAB T4")
+    print("🎯 PROCESAMIENTO SIMPLIFICADO PARA GOOGLE COLAB T4")
     print("=" * 60)
     print(f"📸 Source: {args.source}")
     print(f"📁 Input Folder: {args.input_folder}")
@@ -214,15 +199,15 @@ def main():
     print("=" * 60)
     
     # Procesar videos
-    process_videos_from_folders(
+    process_videos_batch(
         source_path=args.source,
         input_folder=args.input_folder,
         output_folder=args.output_folder,
-        gpu_memory_wait=GPU_MEMORY_WAIT,
-        max_memory=MAX_MEMORY,
-        execution_threads=EXECUTION_THREADS,
-        temp_frame_quality=TEMP_FRAME_QUALITY,
-        keep_fps=KEEP_FPS
+        gpu_memory_wait=args.gpu_memory_wait,
+        max_memory=args.max_memory,
+        execution_threads=args.execution_threads,
+        temp_frame_quality=args.temp_frame_quality,
+        keep_fps=args.keep_fps
     )
 
 if __name__ == "__main__":

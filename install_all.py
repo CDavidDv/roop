@@ -1,69 +1,69 @@
 #!/usr/bin/env python3
 """
-Script de instalación rápida para ROOP en Google Colab
+Script de instalación completa para ROOP en Google Colab
 """
 
-import os
 import subprocess
 import sys
+import os
 import time
 
-def run_command(command, description):
-    """Ejecutar comando con descripción"""
-    print(f"\n🔄 {description}")
-    print(f"💻 Comando: {command}")
-    
+def install_package(package_name, description=""):
+    """Instalar un paquete con descripción"""
     try:
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        print(f"✅ {description} completado")
+        print(f"📦 Instalando {package_name}...")
+        if description:
+            print(f"   {description}")
+        
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "--quiet"])
+        print(f"✅ {package_name} instalado")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error en {description}: {e}")
-        print(f"STDERR: {e.stderr}")
+        print(f"❌ Error instalando {package_name}: {e}")
         return False
 
-def install_dependencies():
+def install_all_dependencies():
     """Instalar todas las dependencias necesarias"""
     
-    print("📦 INSTALANDO DEPENDENCIAS")
+    print("🚀 INSTALACIÓN COMPLETA DE DEPENDENCIAS")
     print("=" * 60)
     
+    # Lista completa de dependencias
     dependencies = [
-        "opencv-python",
-        "pillow", 
-        "onnxruntime-gpu",
-        "opennsfw2",
-        "insightface",
-        "onnx",
-        "tensorflow",
-        "albumentations",
-        "scikit-image",
-        "scipy",
-        "matplotlib",
-        "seaborn",
-        "tqdm",
-        "psutil",
-        "GPUtil",
-        "customtkinter",
-        "tkinter",
-        "Pillow",
-        "opencv-contrib-python"
+        ("opencv-python", "Procesamiento de imágenes y videos"),
+        ("opencv-contrib-python", "Funciones adicionales de OpenCV"),
+        ("pillow", "Procesamiento de imágenes"),
+        ("onnxruntime-gpu", "Runtime de ONNX para GPU"),
+        ("opennsfw2", "Detección de contenido NSFW"),
+        ("insightface", "Reconocimiento facial"),
+        ("onnx", "Formato de modelo ONNX"),
+        ("tensorflow", "Framework de machine learning"),
+        ("tensorflow-gpu", "TensorFlow con soporte GPU"),
+        ("albumentations", "Aumentación de datos"),
+        ("scikit-image", "Procesamiento de imágenes"),
+        ("scipy", "Cálculos científicos"),
+        ("matplotlib", "Visualización de datos"),
+        ("seaborn", "Visualización estadística"),
+        ("tqdm", "Barras de progreso"),
+        ("psutil", "Información del sistema"),
+        ("GPUtil", "Información de GPU"),
+        ("customtkinter", "Interfaz gráfica moderna"),
+        ("tkinter", "Interfaz gráfica básica"),
+        ("numpy", "Cálculos numéricos"),
+        ("torch", "PyTorch para deep learning"),
+        ("torchvision", "Vision models para PyTorch")
     ]
     
     successful = 0
     failed = 0
     
-    for package in dependencies:
-        try:
-            print(f"📦 Instalando {package}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package, "--quiet"])
-            print(f"✅ {package} instalado")
+    for package, description in dependencies:
+        if install_package(package, description):
             successful += 1
-        except subprocess.CalledProcessError:
-            print(f"❌ Error instalando {package}")
+        else:
             failed += 1
     
-    print(f"\n📊 Resumen: {successful} exitosos, {failed} fallidos")
+    print(f"\n📊 RESUMEN: {successful} exitosos, {failed} fallidos")
     return failed == 0
 
 def setup_environment():
@@ -141,49 +141,57 @@ def verify_installation():
     print("=" * 60)
     
     critical_packages = [
-        "cv2",  # opencv-python
-        "PIL",  # pillow
-        "onnxruntime",  # onnxruntime-gpu
-        "opennsfw2",  # opennsfw2
-        "insightface",  # insightface
-        "torch",  # torch
-        "numpy"  # numpy
+        ("cv2", "OpenCV"),
+        ("PIL", "Pillow"),
+        ("onnxruntime", "ONNX Runtime"),
+        ("opennsfw2", "OpenNSFW2"),
+        ("insightface", "InsightFace"),
+        ("torch", "PyTorch"),
+        ("numpy", "NumPy"),
+        ("tensorflow", "TensorFlow")
     ]
     
     all_ok = True
     
-    for package in critical_packages:
+    for package, name in critical_packages:
         try:
             __import__(package)
-            print(f"✅ {package}")
+            print(f"✅ {name}")
         except ImportError:
-            print(f"❌ {package} - NO INSTALADO")
+            print(f"❌ {name} - NO INSTALADO")
             all_ok = False
     
     return all_ok
 
-def show_next_steps():
-    """Mostrar próximos pasos"""
+def show_usage_examples():
+    """Mostrar ejemplos de uso"""
     
-    print("\n🎯 PRÓXIMOS PASOS")
+    print("\n🎯 EJEMPLOS DE USO")
     print("=" * 60)
-    print("1. 📸 Sube tu imagen fuente a: /content/sources/")
-    print("2. 🎬 Sube tus videos a: /content/videos/")
-    print("3. 🚀 Ejecuta el procesamiento:")
-    print("   python run_colab_gpu.py")
-    print("4. 📁 Los resultados estarán en: /content/resultados/")
+    print("1. Procesamiento básico:")
+    print("   python run_simple_gpu.py")
+    print()
+    print("2. Con imagen personalizada:")
+    print("   python run_simple_gpu.py --source /content/sources/mi_imagen.jpg")
+    print()
+    print("3. Con carpetas personalizadas:")
+    print("   python run_simple_gpu.py --source /content/sources/mi_imagen.jpg \\")
+    print("   --input-folder /content/mis_videos --output-folder /content/mis_resultados")
+    print()
+    print("4. Con parámetros optimizados:")
+    print("   python run_simple_gpu.py --max-memory 10 --execution-threads 20")
     print("=" * 60)
 
 def main():
     """Función principal"""
     
-    print("🚀 INSTALACIÓN RÁPIDA PARA ROOP GPU")
+    print("🎯 INSTALACIÓN COMPLETA PARA ROOP GPU")
     print("=" * 60)
     
     start_time = time.time()
     
     # Instalar dependencias
-    deps_ok = install_dependencies()
+    deps_ok = install_all_dependencies()
     
     # Configurar entorno
     setup_environment()
@@ -197,8 +205,8 @@ def main():
     # Verificar instalación
     verify_ok = verify_installation()
     
-    # Mostrar próximos pasos
-    show_next_steps()
+    # Mostrar ejemplos de uso
+    show_usage_examples()
     
     elapsed_time = time.time() - start_time
     
@@ -207,6 +215,10 @@ def main():
     if deps_ok and model_ok and verify_ok:
         print("\n✅ INSTALACIÓN COMPLETADA EXITOSAMENTE")
         print("🚀 ¡Listo para procesar videos con GPU!")
+        print("\n💡 Próximos pasos:")
+        print("1. Sube tu imagen fuente a /content/sources/")
+        print("2. Sube tus videos a /content/videos/")
+        print("3. Ejecuta: python run_simple_gpu.py")
     else:
         print("\n⚠️ INSTALACIÓN INCOMPLETA")
         print("💡 Revisa los errores arriba")
