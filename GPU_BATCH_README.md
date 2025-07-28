@@ -27,9 +27,26 @@ Este script optimizado permite procesar múltiples videos con face swap usando G
 
 ## 🎯 Uso en Google Colab
 
-### 1. Configuración Inicial
+### 1. Instalación Completa (RECOMENDADA)
 
 ```python
+# Ejecutar instalador completo
+!python install_roop_colab.py
+```
+
+### 2. Instalación Rápida
+
+```python
+# Ejecutar instalación rápida
+!python colab_quick_install.py
+```
+
+### 3. Instalación Manual
+
+```python
+# Instalar dependencias
+!pip install onnxruntime-gpu tensorflow-gpu torch torchvision opencv-python pillow numpy scipy psutil tqdm insightface basicsr facexlib gfpgan realesrgan albumentations ffmpeg-python moviepy imageio imageio-ffmpeg
+
 # Clonar ROOP
 !git clone --branch v3 https://github.com/CDavidDv/roop.git
 %cd roop
